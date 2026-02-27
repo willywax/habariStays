@@ -1,0 +1,178 @@
+{
+  "identity": {
+    "name": "Habari Stays",
+    "persona": "E1 - The Anti-AI Designer",
+    "mission": "Fusion of Tanzanian warmth with high-precision SaaS utility.",
+    "theme_strategy": "Light Mode Dominant with 'Savannah Luxury' accents for Travelers, and 'Tactical Clarity' for Cashiers."
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Outfit",
+      "body": "Inter"
+    },
+    "weights": {
+      "heading_hero": "800",
+      "heading_section": "600",
+      "body_regular": "400",
+      "body_medium": "500"
+    },
+    "rules": [
+      "Use 'Outfit' for all headings to give a modern, tech-forward African feel.",
+      "Use 'Inter' for all data tables, inputs, and long-form text for maximum legibility.",
+      "Headings > 32px must use tracking-tight.",
+      "Uppercase labels must use tracking-widest (0.1em) and text-xs."
+    ]
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "DEFAULT": "#0F4C5C",
+        "foreground": "#FFFFFF",
+        "description": "Deep Ocean Blue - Trust, Professionalism"
+      },
+      "secondary": {
+        "DEFAULT": "#E3B505",
+        "foreground": "#1A1A1A",
+        "description": "Savannah Gold - Warmth, Action, Tanzanian Sun"
+      },
+      "accent": {
+        "DEFAULT": "#9A3324",
+        "foreground": "#FFFFFF",
+        "description": "Maasai Red - Alerts, Highlights, Cultural nod"
+      },
+      "background": {
+        "DEFAULT": "#FAFAFA",
+        "paper": "#FFFFFF",
+        "subtle": "#F4F4F5"
+      },
+      "text": {
+        "primary": "#18181B",
+        "secondary": "#52525B",
+        "muted": "#A1A1AA"
+      }
+    },
+    "gradients": {
+      "hero_overlay": "linear-gradient(180deg, rgba(15, 76, 92, 0.4) 0%, rgba(15, 76, 92, 0.8) 100%)",
+      "card_hover": "linear-gradient(45deg, rgba(227, 181, 5, 0.1) 0%, rgba(255, 255, 255, 0) 100%)"
+    },
+    "semantic": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    }
+  },
+  "layout_strategy": {
+    "container": {
+      "marketing": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "dashboard": "w-full px-4 py-6"
+    },
+    "spacing": {
+      "section_gap": "py-24",
+      "card_gap": "gap-6",
+      "dashboard_gap": "gap-4"
+    },
+    "grids": {
+      "bento_marketing": "grid grid-cols-1 md:grid-cols-3 gap-8",
+      "dashboard_metrics": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4",
+      "pos_layout": "grid grid-cols-12 gap-4 h-[calc(100vh-80px)]"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#0F4C5C] text-white hover:bg-[#0A3844] rounded-lg px-6 py-3 font-medium transition-all shadow-lg shadow-[#0F4C5C]/20 active:scale-95",
+      "secondary": "bg-[#E3B505] text-[#1A1A1A] hover:bg-[#C9A004] rounded-lg px-6 py-3 font-medium transition-all",
+      "outline": "border-2 border-[#0F4C5C] text-[#0F4C5C] hover:bg-[#0F4C5C]/5 rounded-lg px-6 py-3 font-medium",
+      "ghost": "text-[#0F4C5C] hover:bg-[#0F4C5C]/5 rounded-lg px-4 py-2 font-medium"
+    },
+    "cards": {
+      "hotel_card": "group relative overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 border border-border/50",
+      "dashboard_widget": "bg-white rounded-xl border border-border p-6 shadow-sm",
+      "pos_item": "bg-white rounded-lg border border-border p-4 hover:border-[#0F4C5C] cursor-pointer transition-all active:bg-[#0F4C5C]/5"
+    },
+    "inputs": {
+      "default": "rounded-lg border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C] focus-visible:ring-offset-2",
+      "search_hero": "h-14 rounded-full border-0 shadow-xl pl-6 pr-32 text-lg"
+    }
+  },
+  "assets": {
+    "images": [
+      {
+        "category": "hero_safari",
+        "url": "https://images.unsplash.com/photo-1741850826374-234124a31bf2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBzYWZhcmklMjBsb2RnZSUyMHNlcmVuZ2V0aSUyMHRhbnphbmlhJTIwc3Vuc2V0fGVufDB8fHx8MTc3MjEyNzM4M3ww&ixlib=rb-4.1.0&q=85",
+        "alt": "Luxury Safari Lodge Sunset"
+      },
+      {
+        "category": "hero_beach",
+        "url": "https://images.unsplash.com/photo-1753618282432-e10ad4afb3f7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHw0fHx0cm9waWNhbCUyMGJlYWNoJTIwcmVzb3J0JTIwdHVycXVvaXNlJTIwb2NlYW58ZW58MHx8fHwxNzcyMTI3MzkyfDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Zanzibar Turquoise Beach"
+      },
+      {
+        "category": "city_hotel",
+        "url": "https://images.unsplash.com/photo-1763708204354-365647bcf21e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBjaXR5JTIwaG90ZWwlMjBidWlsZGluZyUyMGV4dGVyaW9yJTIwYmx1ZSUyMHNreXxlbnwwfHx8fDE3NzIxMjczOTZ8MA&ixlib=rb-4.1.0&q=85",
+        "alt": "Modern City Hotel Dar es Salaam"
+      },
+      {
+        "category": "receptionist",
+        "url": "https://images.pexels.com/photos/5371676/pexels-photo-5371676.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "alt": "Friendly Hotel Receptionist"
+      },
+      {
+        "category": "room_luxury",
+        "url": "https://images.unsplash.com/photo-1741506131058-533fcf894483?crop=entropy&cs=srgb&fm=jpg&ixid=M3w8NjA1ODR8MHwxfHNlYXJjaHwxfHxob3RlbCUyMHJvb20lMjBpbnRlcmlvciUyMGx1eHVyeSUyMGtpbmclMjBiZWQlMjBhZnJpY2FuJTIwZGVjb3J8ZW58MHx8fHwxNzcyMTI3Mzg1fDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Luxury Hotel Room"
+      },
+      {
+        "category": "mobile_payment",
+        "url": "https://images.unsplash.com/photo-1675669313780-2db180653332?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjB1c2luZyUyMG1vYmlsZSUyMHBob25lJTIwZm9yJTIwcGF5bWVudCUyMGJsYWNrJTIwaGFuZHN8ZW58MHx8fHwxNzcyMTI3MzkzfDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Person using mobile payment"
+      }
+    ],
+    "icons": {
+      "library": "lucide-react",
+      "instruction": "Use Lucide React for all standard UI icons. Use explicit SVG components for payment logos (M-Pesa, Airtel Money) if not available in libraries."
+    }
+  },
+  "page_specifics": {
+    "traveler_landing": {
+      "sections": [
+        "Hero: Full height, safari/beach image slider, centralized search bar (Location, Dates, Guests).",
+        "Featured Hotels: Horizontal scroll or Grid of Hotel Cards.",
+        "Why Choose Us: 3-column feature list with icons.",
+        "Footer: Newsletter and links."
+      ]
+    },
+    "owner_dashboard": {
+      "layout": "Sidebar Navigation (left), Top Bar (User Profile), Main Content Area.",
+      "widgets": [
+        "Revenue Chart (Line/Area chart)",
+        "Recent Bookings (Table)",
+        "Room Occupancy (Pie Chart)",
+        "Quick Actions (Add Room, Block Date)"
+      ]
+    },
+    "cashier_pos": {
+      "layout": "Split Screen. Left: 2/3 Order/Room Selection. Right: 1/3 Current Bill & Payment.",
+      "features": [
+        "Large touch-friendly category tabs (Rooms, Food, Services).",
+        "Numpad for manual entry.",
+        "Fast Checkout Button (Green, prominent)."
+      ]
+    }
+  },
+  "universal_guidelines": [
+    "Always use 'Outfit' font for headings.",
+    "Do not use gradients for text, only for backgrounds or buttons.",
+    "Use 24px-32px padding inside cards to avoid cramping.",
+    "Ensure all interactive elements have a hover state.",
+    "For tables, use zebra striping or hover rows for readability.",
+    "Use 'sonner' for all toast notifications.",
+    "All interactive elements MUST have data-testid attributes.",
+    "Use Shadcn UI components but override the font and border radius (0.5rem)."
+  ],
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-md bg-white/80 border border-white/20 shadow-sm",
+    "shadows": "shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
+    "textures": "Use subtle noise overlay on solid backgrounds to reduce digital flatness (optional)."
+  }
+}

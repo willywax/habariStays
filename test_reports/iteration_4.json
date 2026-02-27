@@ -1,0 +1,76 @@
+{
+  "summary": "Comprehensive testing of Admin Hotel CRUD (Create, Edit, Delete) and Excel Import features completed successfully. Backend: 10/10 tests passed. Frontend: All CRUD modals and Import page working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Admin Hotels table",
+        "issues": ["Console warning: '<tr> cannot be a child of <span>' - React hydration warning in table rendering (cosmetic, doesn't affect functionality)"]
+      }
+    ]
+  },
+  "passed_tests": [
+    "POST /api/admin/hotels - create new hotel with name, city, status, etc.",
+    "POST /api/admin/hotels - blocks duplicate hotel name",
+    "PUT /api/admin/hotels/{id} - edit hotel name, city, description, status",
+    "DELETE /api/admin/hotels/{id} - successfully deletes hotel without active bookings",
+    "DELETE /api/admin/hotels/{id} - correctly blocks deletion when hotel has active bookings",
+    "POST /api/admin/import/preview - parses real Excel file with title row in Row 1, headers in Row 2",
+    "POST /api/admin/import/execute - imports non-duplicate hotels with Cloudinary photos",
+    "GET /api/admin/import/batches - returns import history with batch names, imported/skipped counts",
+    "GET /api/admin/all-hotels - returns all hotels for admin with photo counts",
+    "Frontend: Admin Hotels page shows 'Ongeza Hotel' (Create) button",
+    "Frontend: Admin Hotels page shows 'Hariri' (Edit) button per hotel row (16 found)",
+    "Frontend: Admin Hotels page shows 'Futa' (Delete) button per hotel row (16 found)",
+    "Frontend: Create Hotel modal opens with form fields: name, city, address, phone, status",
+    "Frontend: Edit Hotel modal pre-fills existing hotel data (tested with SETAVIN HOTEL)",
+    "Frontend: Delete confirmation modal shows hotel name and Ghairi/Futa buttons",
+    "Frontend: Admin Import page shows Excel upload area and column format info",
+    "Frontend: Import History shows 4 batches (TEST_Pytest_Import_Musoma, Musoma Hotels - Real, etc.)",
+    "Frontend: Public search page shows 8 hotels with Cloudinary photos",
+    "Frontend: Imported hotels display 'Wasiliana Moja kwa Moja' (Contact Directly) badge"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_admin_crud_import.py",
+    "/app/test_reports/pytest/admin_crud_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Console warning '<tr> cannot be a child of <span>' in Admin Hotels table - cosmetic issue from React rendering"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_crud_import.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (all CRUD features working)"
+  },
+  "test_credentials": {
+    "admin": "admin@habaristays.com / admin123"
+  },
+  "seed_data_creation": "Created test hotels via pytest (TEST_Admin_Created_Hotel, TEST_Duplicate_Check_Hotel, etc.) - cleaned up after tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Admin CRUD and Import features fully working. Import batches: TEST_Pytest_Import_Musoma (1 imported, 9 skipped as duplicates), Musoma Hotels - Real (7 imported, 3 skipped). 16 hotels total in system. Excel parser auto-detects header row by finding 'Name' column.",
+  "mocked_apis": {
+    "M-Pesa Payment": "Payment is MOCKED - user clicks 'Nimemaliza Kulipa' to simulate payment confirmation. No real Selcom/M-Pesa integration.",
+    "Cloudinary Upload": "Cloudinary upload is REAL via unsigned preset (habari_stays_upload). Direct browser-to-Cloudinary upload works."
+  },
+  "verified_features": [
+    "Admin can create hotels manually with POST /api/admin/hotels",
+    "Admin can edit hotel details (name, city, status, etc.) with PUT /api/admin/hotels/{id}",
+    "Admin can delete hotels without active bookings with DELETE /api/admin/hotels/{id}",
+    "Delete is blocked for hotels with active bookings (returns 400 error)",
+    "Excel import auto-detects header row (handles title row in Row 1, headers in Row 2)",
+    "Import preview shows hotels with Cloudinary photo counts",
+    "Import execute creates hotels with structured Cloudinary photo objects",
+    "Import History tracks batches with imported/skipped counts",
+    "Public search shows imported hotels with 'Wasiliana Moja kwa Moja' badge",
+    "Admin Hotels table shows Create, Edit, Delete buttons per hotel"
+  ]
+}

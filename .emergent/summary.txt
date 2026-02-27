@@ -1,0 +1,155 @@
+<analysis>**original_problem_statement:**
+The user wants to fix and improve several areas of the Habari Stays platform. The core requirements are:
+1.  **Maintain Search State:** When a user navigates back from a hotel detail page, the search results (filters, scroll position) must be restored.
+2.  **Back Arrow Navigation:** Add consistent back arrow navigation to the Hotel Detail Page, HotelEditPage, Booking Flow, and Cashier-related pages.
+3.  **Verified Hotel Badge:** Display a prominent Verified badge for trusted hotels on search cards and detail pages. Unverified hotels should have a Contact Directly flow instead of Book Now.
+4.  **Require Registration to Call:** Gate hotel phone numbers behind a user login/registration modal to capture customer leads.
+5.  **Show Starting Price:** Display the minimum available room price (Kuanzia TZS XX,000) on hotel search listings and detail pages.
+6.  **Fix City Dropdown:** The city search filter must dynamically show all cities that have active hotels in the database.
+7.  **Redesign Popular Cities:** Redesign the Popular Cities section on the homepage with real city photos, overlays, and hover effects. Do not include Zanzibar.
+8.  **Cashier Mobile-First Redesign:** Overhaul the cashier dashboard to be mobile-first, using a bottom tab bar navigation on mobile devices and responsive, card-based layouts for all data tables.
+
+**User's preferred language**: The user communicates in English. The application UI is bilingual (Swahili/English). The next agent should communicate in **English**.
+
+**what currently exists?**
+The backend has been updated to support the new features: a  field has been added to hotel API responses, and the  endpoint is fixed. The frontend has undergone significant changes:  was heavily modified to handle search state persistence, verified badges, phone number gating, and the new Popular Cities design.  was completely rewritten to be mobile-first, using a bottom tab bar and responsive cards. However, **none of these new changes have been tested**, and some planned features (like several back arrows) were missed. The application is in an unverified state.
+
+**Last working item**:
+*   **Last item agent was working:** The agent finished implementing a large batch of 8 feature improvements. The final code change was making the Active Guests list in the Cashier Dashboard responsive. The implementation is considered complete, but testing has not started.
+*   **Status:** IN PROGRESS
+*   **Agent Testing Done:** N
+*   **Which testing method agent to use?**: both. A comprehensive test is required. Start by following the user's detailed test checklist from message #199. Then, call the testing agent.
+*   **User Testing Done:** N
+
+**All Pending/In progress Issue list**:
+*   **Issue 1: Missing Back Arrow Navigation (Priority: P0)**
+
+    *   **Issues Detail:**
+        *   **Attempted fixes:** None. The agent overlooked this part of the user's request.
+        *   **Next debug checklist:**
+            1.  In , add a back arrow that navigates to the appropriate dashboard ( or ).
+            2.  In , add a back arrow to the  component that navigates to the previous step or back to the hotel detail page.
+            3.  In , add back arrows to the multi-step walk-in flow.
+            4.  In  component (), add a back arrow to the cashier performance detail view to return to the cashier list.
+        *   **Why fix this issue and what will be achieved with the fix?** To fulfill a direct user requirement and improve application usability and navigation consistency.
+        *   **Status:** NOT STARTED
+        *   **Is recurring issue?** N
+        *   **Should Test frontend/backend/both after fix?** Frontend
+        *   **Blocked on other issue:** None
+
+*   **Issue 2: Comprehensive Testing for All New Features (Priority: P1)**
+
+    *   **Issues Detail:**
+        *   **Attempted fixes:** None. The agent completed implementation but did not proceed to testing.
+        *   **Next debug checklist:** After fixing Issue 1, execute the full test plan provided by the user in message #199. Verify search state restoration, verified badges, login modals for phone numbers, starting prices, dynamic city filters, popular city visuals, and the complete cashier mobile redesign.
+        *   **Why fix this issue and what will be achieved with the fix?** To ensure the 8 newly implemented features work correctly and haven't introduced regressions. The current task cannot be considered complete until it is fully tested.
+        *   **Status:** NOT STARTED
+        *   **Is recurring issue?** N
+        *   **Should Test frontend/backend/both after fix?** Both
+        *   **Blocked on other issue:** Issue 1: Missing Back Arrow Navigation
+
+**In progress Task List**:
+*   **Task 1: Complete and Verify the Fix and Improve Feature Set (Priority: P0)**
+    *   **Task Detail:**
+        *   **Where to resume:** Start by implementing the missing back arrows (Issue 1), then proceed to a full test of all 8 features (Issue 2).
+        *   **What will be achieved with this?** A fully functional and tested application incorporating all recent user requests, ready for user verification.
+        *   **Status:** IN PROGRESS
+        *   **Should Test frontend/backend/both after fix?** Both
+        *   **Blocked on something:** Blocked on resolving Issue 1 and Issue 2.
+
+**Upcoming and Future Tasks**
+*   **Upcoming Tasks:**
+    *   **P1: Implement Mock Selcom Payment Flow:** Build a realistic M-Pesa payment simulation with a 2-minute countdown timer and a webhook endpoint.
+    *   **P1: Implement Booking Expiry Logic:** Create a background job to expire unpaid bookings and restore room availability.
+    *   **P1: Implement Admin Approval for Hotel Owners:** Implement the pending state and approval flow for new hotel owner registrations.
+*   **Future Tasks:**
+    *   **P2: Implement Google Social Auth.**
+    *   **P2: Implement EN/SW Language Toggle on the public site.**
+    *   **P2: Implement SEO-friendly URL Slugs.**
+    *   **P2: Create Custom 404/500 Error Pages.**
+    *   **P2: Refactor the monolithic  file into smaller, page-specific components.**
+
+**Completed work in this session**
+- **Cashier System Overhaul:** A complete cashier dashboard was built from the ground up with backend APIs and a functional frontend for managing check-ins, walk-ins, active guests, and shift summaries.
+- **Admin/Owner Cashier Management:** UI and backend logic for full CRUD management of cashier users was implemented.
+- **Dashboard Language Toggle:** A React Context-based language toggle was implemented and added to all three dashboards (Admin, Owner, Cashier).
+- **Hotel Management Refactor:** Completed the move from a modal-based edit system to a dedicated , resolving the broken state from the previous session.
+
+**Earlier issues found/mentioned but not fixed**
+- None.
+
+**Known issue recurrence from previous fork**
+- None.
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+*   **Backend:** FastAPI, Python, MongoDB (), JWT Authentication.
+*   **Frontend:** React, , , **React Context API** (for language), **sessionStorage** (for search state persistence).
+*   **Styling:** Plain CSS with variables, mobile-first responsive design.
+*   **Integrations:** Cloudinary (Images), Beem (SMS), Selcom (Payments - Mock pending).
+
+**key DB schema**
+*   **hotels:** , , , , , ,  (Array[str]),  (Array[PhotoObject]).
+*   **room_types:** , , , , ,  (Array[str]),  (Array[PhotoObject]),  (bool).
+*   **cashier_activity_log:** , , , , , , , .
+
+**changes in tech stack**
+*   None.
+
+**All files of reference**
+*   : The entire backend logic. See recent changes for  and corrected database queries.
+*   : The main public-facing components file. Contains all the recent logic for search, hotel details, and auth.
+*   : The rewritten, mobile-first cashier interface.
+*   : Stores all strings for the language toggle feature.
+*   : The product requirements document.
+
+**Areas that need refactoring**:
+*   **Monolithic Frontend ():** This file is now critically oversized, containing the logic for at least five distinct pages/views. It should be broken down into a  directory with components like , , , etc., to improve maintainability.
+*   **Monolithic Backend ():** This remains a significant architectural debt. It should be broken down into separate files for routes, models, and services.
+
+**key api endpoints**
+*   : Updated to return  and include hotels with  or  status.
+*   : Updated to return .
+*   : Query logic was fixed to return a correct, dynamic list of cities with active hotels.
+
+**Critical Info for New Agent**
+*   **Your immediate task is to implement the missing back arrows (Issue #1).** This was a direct user requirement that was overlooked.
+*   After adding the back arrows, you must **perform a comprehensive test of all 8 recently implemented features** as detailed in the user's test checklist (Issue #2). The application's current state is unverified.
+*   The  file has become a monolith. Propose refactoring it into separate page components as a future task after the current work is verified.
+
+**documents and test reports created in this job**
+*    (updated)
+*    (Passed, but for features implemented *before* the latest batch of 8).
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **#199:** User provided a large, detailed list of 8 new features and improvements, including search persistence, back arrows, verified badges, phone gating, pricing display, dynamic cities, and a cashier mobile redesign. (IN PROGRESS)
+2.  **#216:** User approved the agent's plan for the 8 features. (RESOLVED)
+3.  **#191:** User approved the plan for the cashier system overhaul and added a new requirement for a Verify Booking sidebar item. (RESOLVED)
+4.  **#178:** User requested to stop work on P1 tasks and instead focus on a complete overhaul of the Cashier system, admin cashier management, and the language toggle. (RESOLVED)
+5.  **#91:** User approved the plan for the P0 refactor. (RESOLVED)
+6.  **#78:** User approved the plan for the P0 refactor. (RESOLVED)
+
+**Project Health Check:**
+*   **Broken/Unverified:** The application is in an unverified state. A large batch of features was just implemented without any testing, and some required UI elements (back arrows) are missing.
+*   **Mocked:** Selcom payment system is still pending implementation as a mock.
+
+**3rd Party Integrations**
+*   **Cloudinary:** Fully integrated for image hosting.
+*   **Beem (SMS):** Fully integrated for SMS notifications.
+*   **Selcom (Payments):** Mock implementation is a pending upcoming task.
+
+**Testing status**
+*   **Testing agent used after significant changes:** NO (Not for the most recent batch of 8 features).
+*   **Troubleshoot agent used after agent stuck in loop:** NO
+*   **Test files created:** None
+*   **Known regressions:** Unknown. High risk due to the large number of untested changes.
+
+**Credentials to test flow:**
+*   **Admin:**  / 
+*   **Cashier:** A cashier account was created for Test Hotel Dodoma. Credentials can be found in previous logs or a new one can be created.
+
+**What agent forgot to execute**
+*   The agent failed to implement the back arrow navigation feature on , the booking flow, and other specified areas, despite including it in the plan. This is the highest priority fix needed.
+*   The agent did not perform any testing (manual or automated) after implementing the 8 new features, leaving the application in an unverified state.</analysis>

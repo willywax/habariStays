@@ -1,0 +1,86 @@
+{
+  "summary": "Comprehensive testing of new Cloudinary photo management features completed. Backend: 15/16 tests passed (1 skipped). Frontend: All photo features working correctly - PhotoManager, Import page, Hotel detail with gallery, Search page with Cloudinary images.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "N/A",
+        "issue": "Console warning in AdminHotels: '<tr> cannot be a child of <span>' - React hydration warning in table rendering (cosmetic, doesn't affect functionality)",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Admin Import page",
+        "issues": ["Batch name and city override inputs are only visible after preview is shown, not in initial state - this is by design"]
+      }
+    ]
+  },
+  "passed_tests": [
+    "GET /api/config/cloudinary - returns cloud_name, upload_preset, folder",
+    "GET /api/admin/import/batches - lists import history",
+    "GET /api/admin/import/batches/{batch_id} - returns batch detail with hotels",
+    "GET /api/hotels/{id}/photos - returns structured photo array sorted by sort_order",
+    "POST /api/hotels/{id}/photos - adds new photo object",
+    "PATCH /api/hotels/{id}/photos/{photo_id}/set-primary - sets primary and unsets others",
+    "PATCH /api/hotels/{id}/photos/reorder - reorders by photo_ids array",
+    "DELETE /api/hotels/{id}/photos/{photo_id} - blocks deletion of last photo",
+    "DELETE /api/hotels/{id}/photos/{photo_id} - deletes photo and auto-promotes primary",
+    "POST /api/rooms/{id}/photos - adds room photo",
+    "PATCH /api/rooms/{id}/photos/{photo_id}/set-primary - sets room photo primary",
+    "POST /api/admin/import/preview - parses Excel with Cloudinary columns",
+    "POST /api/admin/import/execute - creates hotels with structured photos",
+    "GET /api/hotels/{id} - returns hotel with Cloudinary photos array",
+    "GET /api/hotels - returns hotels list with Cloudinary photos for search page",
+    "Frontend: Landing page loads with Cloudinary hotel cards",
+    "Frontend: Search page shows 6 hotels with 'Wasiliana Moja kwa Moja' badges for imported hotels",
+    "Frontend: Hotel detail page shows Cloudinary hero image (web 1280px)",
+    "Frontend: Hotel detail page shows 'Picha' photo gallery with Primary badge",
+    "Frontend: Admin Dashboard shows 8 hotels, 4 bookings, TZS 50,000 revenue",
+    "Frontend: Admin Hotels page shows photo count column (camera icon with count)",
+    "Frontend: Admin Import page shows Excel upload, Import History section with 2 batches",
+    "Frontend: PhotoManager component works - shows photo grid with Primary badge, set-primary/delete buttons, upload area"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_cloudinary_photos.py",
+    "/app/test_reports/pytest/cloudinary_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_cloudinary_photos.py"
+  ],
+  "success_rate": {
+    "backend": "94% (15/16 tests passed, 1 skipped)",
+    "frontend": "100% (all Cloudinary photo features working)"
+  },
+  "test_credentials": {
+    "admin": "admin@habaristays.com / admin123"
+  },
+  "seed_data": {
+    "cloudinary_hotels": "Le grand Victoria hotel (7a9da835-6a26-4f4c-bedf-5d2954fed4b7) - 3 photos, Bwami Dubai Hotel (93ce0ded-7aaf-4497-8bca-b90be16ba2c2) - 3 photos",
+    "import_batches": "2 batches: 'Musoma Hotels' (2 imported), 'TEST_Pytest Import' (0 imported, 2 skipped as duplicates)"
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Cloudinary photo features fully working. Hotels with structured photo objects show 'Picha' gallery on detail page. Import batches history shows in /admin/import. PhotoManager component in /admin/hotels/:id/photos allows setting primary, reordering, deleting photos. Room photo APIs exist but room types in test hotels don't have photos yet.",
+  "mocked_apis": {
+    "M-Pesa Payment": "Payment is MOCKED - user clicks 'Nimemaliza Kulipa' to simulate payment confirmation. No real Selcom/M-Pesa integration.",
+    "Cloudinary Upload": "Cloudinary upload is REAL via unsigned preset (habari_stays_upload). Direct browser-to-Cloudinary upload works."
+  },
+  "verified_cloudinary_features": [
+    "Excel import parses P1/P2/P3 Cloudinary columns (Original, Thumb, Mobile, Web, HD)",
+    "Photos stored as structured objects with all 5 Cloudinary URL sizes",
+    "Hotel photos API supports CRUD: get, add, set-primary, reorder, delete",
+    "Room photos API supports same operations with max 5 photos",
+    "Delete blocks last photo, auto-promotes primary when deleted",
+    "PhotoManager UI shows photo grid with hover actions",
+    "Public site uses responsive Cloudinary URLs (thumb for cards, web for hero, mobile for gallery)",
+    "Import batch history tracks imported/skipped counts",
+    "Imported hotels show 'Wasiliana Moja kwa Moja' (Contact Directly) badge"
+  ]
+}
