@@ -269,7 +269,7 @@ const translations = {
 
 // Language Provider
 const LanguageProvider = ({ children }) => {
-  const [lang, setLang] = useState(localStorage.getItem("lang") || "sw");
+  const [lang, setLang] = useState(localStorage.getItem("lang") || "en");
   
   const t = useCallback((key) => translations[lang][key] || key, [lang]);
   
@@ -438,6 +438,7 @@ const Navbar = ({ transparent = false }) => {
   const { lang, t, toggleLang } = useLang();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -451,7 +452,10 @@ const Navbar = ({ transparent = false }) => {
   const handleLogout = () => {
     logout();
     navigate("/");
+    setMobileMenuOpen(false);
   };
+  
+  const closeMobile = () => setMobileMenuOpen(false);
   
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBg}`}>
@@ -466,6 +470,7 @@ const Navbar = ({ transparent = false }) => {
             </div>
           </Link>
           
+          {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-6">
             <Link to="/" className={`${textColor} hover:text-[#E07B2A] transition-colors font-medium`}>
               {t("home")}
@@ -475,7 +480,8 @@ const Navbar = ({ transparent = false }) => {
             </Link>
           </div>
           
-          <div className="flex items-center gap-3">
+          {/* Desktop right section */}
+          <div className="hidden md:flex items-center gap-3">
             <button
               onClick={toggleLang}
               className={`px-3 py-1 rounded-full border ${transparent && !scrolled ? "border-white/50 text-white" : "border-[#1A1A1A]/20 text-[#1A1A1A]"} text-sm font-medium hover:bg-[#E07B2A] hover:text-white hover:border-[#E07B2A] transition-all`}
@@ -519,8 +525,62 @@ const Navbar = ({ transparent = false }) => {
               </>
             )}
           </div>
+
+          {/* Mobile: language toggle + hamburger */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={toggleLang}
+              className={`px-2.5 py-1 rounded-full border ${transparent && !scrolled ? "border-white/50 text-white" : "border-[#1A1A1A]/20 text-[#1A1A1A]"} text-xs font-medium`}
+              data-testid="lang-toggle-mobile"
+            >
+              {lang === "sw" ? "EN" : "SW"}
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`p-2 rounded-lg ${transparent && !scrolled ? "text-white" : "text-[#1A1A1A]"}`}
+              aria-label="Toggle menu"
+              data-testid="mobile-menu-btn"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Mobile menu dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-t border-[#1A1A1A]/10 shadow-lg">
+          <div className="px-4 py-4 space-y-2">
+            <Link to="/" onClick={closeMobile} className="block px-4 py-3 text-[#1A1A1A] hover:bg-[#F4F4F5] rounded-lg font-medium">{t("home")}</Link>
+            <Link to="/search" onClick={closeMobile} className="block px-4 py-3 text-[#1A1A1A] hover:bg-[#F4F4F5] rounded-lg font-medium">{t("explore")}</Link>
+            <hr className="border-[#1A1A1A]/10 my-2" />
+            {user ? (
+              <>
+                <Link 
+                  to={user.role === "admin" ? "/admin" : user.role === "owner" ? "/owner" : user.role === "cashier" ? "/cashier" : "/"}
+                  onClick={closeMobile}
+                  className="block px-4 py-3 text-[#1A1A1A] hover:bg-[#F4F4F5] rounded-lg font-medium"
+                >
+                  {t("dashboard")}
+                </Link>
+                <button onClick={handleLogout} className="block w-full text-left px-4 py-3 text-[#1A1A1A] hover:bg-[#F4F4F5] rounded-lg font-medium">
+                  {t("logout")}
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={closeMobile} className="block px-4 py-3 text-[#1A1A1A] hover:bg-[#F4F4F5] rounded-lg font-medium">{t("login")}</Link>
+                <Link to="/register" onClick={closeMobile} className="block px-4 py-3 text-[#1A1A1A] hover:bg-[#F4F4F5] rounded-lg font-medium">{t("register")}</Link>
+                <Link to="/register-hotel" onClick={closeMobile} className="block px-4 py-3 bg-[#E07B2A] text-white rounded-lg font-medium text-center">{t("listHotel")}</Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   );
 };
@@ -1086,6 +1146,7 @@ const HotelDetailPage = () => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [activePhoto, setActivePhoto] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -1253,7 +1314,8 @@ const HotelDetailPage = () => {
                     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
                     .map((photo, idx) => (
                     <div key={photo.id || idx} className="relative aspect-[3/2] rounded-xl overflow-hidden cursor-pointer group"
-                      onClick={() => window.open(getPhotoUrl(photo, "hd"), "_blank")}>
+                      onClick={() => setActivePhoto(getPhotoUrl(photo, "hd") || getPhotoUrl(photo, "web") || getPhotoUrl(photo, "mobile"))}
+                      data-testid={`photo-${photo.id || idx}`}>
                       <img src={getPhotoUrl(photo, "mobile")} alt={`${hotel.name} ${idx + 1}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                       {photo.is_primary && (
@@ -1306,10 +1368,21 @@ const HotelDetailPage = () => {
                         </div>
                         {isImported ? (
                           <div className="flex flex-col gap-2">
-                            <a href={`tel:${hotel.phone_number}`}
-                              className="bg-[#1B4332] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all text-center">
-                              {lang === "sw" ? "Piga Simu" : "Call"}
-                            </a>
+                            {user ? (
+                              <a href={`tel:${hotel.phone_number}`}
+                                className="bg-[#1B4332] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all text-center"
+                                data-testid={`room-call-link-${room.id}`}>
+                                {lang === "sw" ? "Piga Simu" : "Call"}
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleContactClick}
+                                className="bg-[#1B4332] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all text-center"
+                                data-testid={`room-call-cta-${room.id}`}>
+                                {lang === "sw" ? "Piga Simu" : "Call"}
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <button
@@ -1444,6 +1517,23 @@ const HotelDetailPage = () => {
               <Link to="/register" className="flex-1 py-2.5 bg-[#E07B2A] text-white rounded-lg font-medium text-sm hover:bg-[#C96A1F] text-center">{lang === "sw" ? "Jisajili" : "Register"}</Link>
               <Link to="/login" className="flex-1 py-2.5 border border-[#1A1A1A]/20 rounded-lg font-medium text-sm hover:bg-[#F4F4F5] text-center">{lang === "sw" ? "Ingia Tayari" : "Log In"}</Link>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Lightbox */}
+      {activePhoto && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setActivePhoto(null)} data-testid="photo-lightbox">
+          <div className="relative max-w-5xl w-full" onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setActivePhoto(null)}
+              className="absolute -top-3 -right-3 bg-white text-[#1A1A1A] rounded-full p-2 shadow-lg hover:bg-[#F4F4F5]"
+              aria-label="Close photo viewer"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <img src={activePhoto} alt="Hotel detail" className="w-full rounded-2xl shadow-2xl" />
           </div>
         </div>
       )}

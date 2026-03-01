@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Routes, Route, Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { api, LoadingSpinner, useAuth, LanguageToggle } from "../App";
+import { api, LoadingSpinner, useAuth, LanguageToggle, useLang } from "../App";
 import PhotoManager, { getPhotoUrl, getCoverUrl } from "../components/PhotoManager";
 import HotelEditPage from "../components/HotelEditPage";
 import {
@@ -18,15 +18,17 @@ const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { lang, t } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
 
   const handleLogout = () => { logout(); navigate("/"); };
 
   const navItems = [
-    { path: "/admin", icon: LayoutDashboard, label: "Dashibodi", exact: true },
-    { path: "/admin/hotels", icon: Building2, label: "Hoteli" },
-    { path: "/admin/owners", icon: UserCheck, label: "Wamiliki" },
-    { path: "/admin/cashiers", icon: Users, label: "Weka Hazina" },
-    { path: "/admin/import", icon: Upload, label: "Import Hotels" },
+    { path: "/admin", icon: LayoutDashboard, label: translate("Dashboard", "Dashibodi"), exact: true },
+    { path: "/admin/hotels", icon: Building2, label: translate("Hotels", "Hoteli") },
+    { path: "/admin/owners", icon: UserCheck, label: translate("Owners", "Wamiliki") },
+    { path: "/admin/cashiers", icon: Users, label: translate("Cashiers", "Weka Hazina") },
+    { path: "/admin/import", icon: Upload, label: translate("Import Hotels", "Ingiza Hoteli") },
   ];
 
   const isActive = (path, exact) => {
@@ -42,7 +44,7 @@ const AdminDashboard = () => {
             <div className="w-10 h-10 bg-[#9A3324] rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">HS</span>
             </div>
-            <span className="font-['Outfit'] font-bold text-lg text-[#9A3324]">Admin Panel</span>
+            <span className="font-['Outfit'] font-bold text-lg text-[#9A3324]">{translate("Admin Panel", "Paneli ya Admin")}</span>
           </Link>
         </div>
         <nav className="p-4 space-y-1">
@@ -58,13 +60,13 @@ const AdminDashboard = () => {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
           <div className="mb-3 px-4 flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#A1A1AA]">Admin</p>
+              <p className="text-sm text-[#A1A1AA]">{translate("Admin", "Msimamizi")}</p>
               <p className="font-medium text-[#18181B]">{user?.full_name}</p>
             </div>
             <LanguageToggle />
           </div>
           <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 w-full text-[#52525B] hover:bg-[#F4F4F5] rounded-lg" data-testid="admin-logout-btn">
-            <LogOut className="w-5 h-5" /><span className="font-medium">Toka</span>
+            <LogOut className="w-5 h-5" /><span className="font-medium">{t("logout")}</span>
           </button>
         </div>
       </aside>
@@ -87,6 +89,8 @@ const AdminDashboard = () => {
 const AdminHome = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { lang, t } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
 
   useEffect(() => { fetchStats(); }, []);
   const fetchStats = async () => {
@@ -98,22 +102,46 @@ const AdminHome = () => {
   if (loading) return <LoadingSpinner />;
 
   const bookingData = [
-    { name: "Online", value: stats?.online_bookings || 0 },
-    { name: "Walk-in", value: stats?.walkin_bookings || 0 }
+    { name: translate("Online", "Online"), value: stats?.online_bookings || 0 },
+    { name: translate("Walk-in", "Walk-in"), value: stats?.walkin_bookings || 0 }
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">Admin Dashboard</h1>
-        <p className="text-[#52525B]">Muhtasari wa platform nzima</p>
+        <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">{translate("Admin Dashboard", "Dashibodi ya Admin")}</h1>
+        <p className="text-[#52525B]">{translate("Full platform overview", "Muhtasari wa platform nzima")}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Hoteli Jumla", value: stats?.total_hotels, sub: `${stats?.verified_hotels || 0} Zilizothibitishwa`, color: "text-[#18181B]", id: "stat-hotels" },
-          { label: "Bukini Jumla", value: stats?.total_bookings, sub: `${stats?.online_bookings || 0} Online, ${stats?.walkin_bookings || 0} Walk-in`, color: "text-[#18181B]", id: "stat-bookings" },
-          { label: "Wamiliki Wapya", value: stats?.pending_owners, sub: "Wanasubiri uthibitishaji", color: stats?.pending_owners > 0 ? "text-[#E07B2A]" : "text-[#18181B]", id: "stat-pending" },
-          { label: "Mapato Jumla", value: `TZS ${(stats?.total_revenue || 0).toLocaleString()}`, sub: `Commission: TZS ${(stats?.commission_10_percent || 0).toLocaleString()}`, color: "text-[#0F4C5C]", id: "stat-revenue" },
+          {
+            label: translate("Total Hotels", "Hoteli Jumla"),
+            value: stats?.total_hotels,
+            sub: `${stats?.verified_hotels || 0} ${translate("Verified", "Zilizothibitishwa")}`,
+            color: "text-[#18181B]",
+            id: "stat-hotels"
+          },
+          {
+            label: translate("Total Bookings", "Bukini Jumla"),
+            value: stats?.total_bookings,
+            sub: `${stats?.online_bookings || 0} ${translate("Online", "Online")}, ${stats?.walkin_bookings || 0} ${translate("Walk-in", "Walk-in")}`,
+            color: "text-[#18181B]",
+            id: "stat-bookings"
+          },
+          {
+            label: translate("Pending Owners", "Wamiliki Wapya"),
+            value: stats?.pending_owners,
+            sub: translate("Awaiting verification", "Wanasubiri uthibitishaji"),
+            color: stats?.pending_owners > 0 ? "text-[#E07B2A]" : "text-[#18181B]",
+            id: "stat-pending"
+          },
+          {
+            label: translate("Total Revenue", "Mapato Jumla"),
+            value: `TZS ${(stats?.total_revenue || 0).toLocaleString()}`,
+            sub: `${translate("Commission", "Commission")}: TZS ${(stats?.commission_10_percent || 0).toLocaleString()}`,
+            color: "text-[#0F4C5C]",
+            id: "stat-revenue"
+          },
         ].map(s => (
           <div key={s.id} className="bg-white rounded-xl border border-border p-6 shadow-sm" data-testid={s.id}>
             <p className="text-[#A1A1AA] text-sm mb-2">{s.label}</p>
@@ -124,7 +152,7 @@ const AdminHome = () => {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-border p-6">
-          <h3 className="font-['Outfit'] text-lg font-semibold text-[#18181B] mb-6">Online vs Walk-in</h3>
+          <h3 className="font-['Outfit'] text-lg font-semibold text-[#18181B] mb-6">{translate("Online vs Walk-in", "Online dhidi ya Walk-in")}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -137,7 +165,7 @@ const AdminHome = () => {
           </div>
         </div>
         <div className="bg-white rounded-xl border border-border p-6">
-          <h3 className="font-['Outfit'] text-lg font-semibold text-[#18181B] mb-6">Revenue by City</h3>
+          <h3 className="font-['Outfit'] text-lg font-semibold text-[#18181B] mb-6">{translate("Revenue by City", "Mapato kwa Mji")}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats?.revenue_by_city || []}>
@@ -161,6 +189,8 @@ const AdminHotels = () => {
   const [attachModal, setAttachModal] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const navigate = useNavigate();
+  const { lang, t } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
 
   useEffect(() => { fetchHotels(); }, []);
   const fetchHotels = async () => {
@@ -170,20 +200,20 @@ const AdminHotels = () => {
   };
 
   const verifyHotel = async (hotelId) => {
-    try { await api.put(`/admin/hotels/${hotelId}/verify`); toast.success("Hotel imethibitishwa!"); fetchHotels(); }
-    catch (err) { toast.error("Imeshindikana"); }
+    try { await api.put(`/admin/hotels/${hotelId}/verify`); toast.success(translate("Hotel verified!", "Hotel imethibitishwa!")); fetchHotels(); }
+    catch (err) { toast.error(translate("Failed", "Imeshindikana")); }
   };
   const suspendHotel = async (hotelId) => {
-    try { await api.put(`/admin/hotels/${hotelId}/suspend`); toast.success("Hotel imesimamishwa"); fetchHotels(); }
-    catch (err) { toast.error("Imeshindikana"); }
+    try { await api.put(`/admin/hotels/${hotelId}/suspend`); toast.success(translate("Hotel suspended", "Hotel imesimamishwa")); fetchHotels(); }
+    catch (err) { toast.error(translate("Failed", "Imeshindikana")); }
   };
   const deleteHotel = async () => {
     if (!deleteConfirm) return;
     try {
       await api.delete(`/admin/hotels/${deleteConfirm.id}`);
-      toast.success(`Hotel '${deleteConfirm.name}' imefutwa`);
+      toast.success(translate(`Hotel '${deleteConfirm.name}' deleted`, `Hotel '${deleteConfirm.name}' imefutwa`));
       setDeleteConfirm(null); fetchHotels();
-    } catch (err) { toast.error(err.response?.data?.detail || "Imeshindikana kufuta"); }
+    } catch (err) { toast.error(err.response?.data?.detail || translate("Failed to delete", "Imeshindikana kufuta")); }
   };
 
   const filteredHotels = hotels.filter(h =>
@@ -194,10 +224,10 @@ const AdminHotels = () => {
 
   const statusBadge = (status) => {
     const map = {
-      verified: { bg: "bg-green-100", text: "text-green-700", label: "Imethibitishwa" },
-      pending: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Inasubiri" },
-      imported: { bg: "bg-blue-100", text: "text-blue-700", label: "Imeingizwa" },
-      suspended: { bg: "bg-red-100", text: "text-red-700", label: "Imesimamishwa" }
+      verified: { bg: "bg-green-100", text: "text-green-700", label: translate("Verified", "Imethibitishwa") },
+      pending: { bg: "bg-yellow-100", text: "text-yellow-700", label: translate("Pending", "Inasubiri") },
+      imported: { bg: "bg-blue-100", text: "text-blue-700", label: translate("Imported", "Imeingizwa") },
+      suspended: { bg: "bg-red-100", text: "text-red-700", label: translate("Suspended", "Imesimamishwa") }
     };
     const s = map[status] || map.pending;
     return <span className={`px-2 py-1 ${s.bg} ${s.text} text-xs font-medium rounded`}>{s.label}</span>;
@@ -207,15 +237,15 @@ const AdminHotels = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">Hoteli Zote</h1>
-          <p className="text-[#52525B]">{hotels.length} hoteli kwenye platform</p>
+          <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">{translate("All Hotels", "Hoteli Zote")}</h1>
+          <p className="text-[#52525B]">{translate(`${hotels.length} hotels on the platform`, `${hotels.length} hoteli kwenye platform`)}</p>
         </div>
         <div className="flex gap-3">
           <button onClick={() => navigate("/admin/hotels/new")} className="flex items-center gap-2 bg-[#1B4332] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#143D28]" data-testid="create-hotel-btn">
-            <Plus className="w-4 h-4" /> Ongeza Hotel
+            <Plus className="w-4 h-4" /> {translate("Add Hotel", "Ongeza Hotel")}
           </button>
           <Link to="/admin/import" className="flex items-center gap-2 bg-[#9A3324] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#7A2A1D]" data-testid="import-hotels-btn">
-            <Upload className="w-4 h-4" /> Import Hotels
+            <Upload className="w-4 h-4" /> {translate("Import Hotels", "Ingiza Hoteli")}
           </Link>
         </div>
       </div>
@@ -223,7 +253,7 @@ const AdminHotels = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A1A1AA]" />
         <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)}
-          placeholder="Tafuta hotel kwa jina au mji..."
+          placeholder={translate("Search hotels by name or city...", "Tafuta hotel kwa jina au mji...")}
           className="w-full pl-10 pr-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
           data-testid="search-hotels-input" />
       </div>
@@ -232,13 +262,13 @@ const AdminHotels = () => {
         <table className="w-full">
           <thead className="bg-[#F4F4F5]">
             <tr>
-              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Hotel</th>
-              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Mji</th>
-              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Mmiliki</th>
-              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Vyumba</th>
-              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Picha</th>
-              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Hali</th>
-              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Kitendo</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Hotel", "Hotel")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("City", "Mji")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Owner", "Mmiliki")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Room Types", "Vyumba")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Photos", "Picha")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{t("status")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{t("actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -265,16 +295,16 @@ const AdminHotels = () => {
                     <div><p className="text-sm font-medium text-[#18181B]">{hotel.owner_name}</p><p className="text-xs text-[#A1A1AA]">{hotel.owner_email}</p></div>
                   ) : (
                     <button onClick={() => setAttachModal(hotel)} className="text-sm text-[#9A3324] hover:underline font-medium" data-testid={`attach-owner-${hotel.id}`}>
-                      + Weka Mmiliki
+                      + {translate("Attach Owner", "Weka Mmiliki")}
                     </button>
                   )}
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-[#52525B]" data-testid={`room-count-${hotel.id}`}>{hotel.room_type_count || 0} aina</span>
+                    <span className="text-sm text-[#52525B]" data-testid={`room-count-${hotel.id}`}>{hotel.room_type_count || 0} {translate("types", "aina")}</span>
                     {hotel.has_default_rooms && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] font-medium rounded" data-testid={`needs-update-${hotel.id}`}>
-                        <AlertTriangle className="w-3 h-3" /> Sasisha
+                        <AlertTriangle className="w-3 h-3" /> {translate("Update", "Sasisha")}
                       </span>
                     )}
                   </div>
@@ -292,19 +322,19 @@ const AdminHotels = () => {
                   <div className="flex gap-1.5 flex-wrap">
                     {hotel.status !== "verified" && hotel.status !== "suspended" && (
                       <button onClick={() => verifyHotel(hotel.id)} className="flex items-center gap-1 bg-green-500 text-white px-2.5 py-1 rounded text-xs font-medium hover:bg-green-600" data-testid={`verify-hotel-${hotel.id}`}>
-                        <Check className="w-3 h-3" /> Thibitisha
+                        <Check className="w-3 h-3" /> {translate("Verify", "Thibitisha")}
                       </button>
                     )}
                     <button onClick={() => navigate(`/admin/hotels/${hotel.id}`)} className="flex items-center gap-1 bg-[#0F4C5C] text-white px-2.5 py-1 rounded text-xs font-medium hover:bg-[#0D3E4D]" data-testid={`edit-hotel-${hotel.id}`}>
-                      <Pencil className="w-3 h-3" /> Hariri
+                      <Pencil className="w-3 h-3" /> {t("edit")}
                     </button>
                     {hotel.status !== "suspended" && (
                       <button onClick={() => suspendHotel(hotel.id)} className="flex items-center gap-1 bg-yellow-100 text-yellow-700 px-2.5 py-1 rounded text-xs font-medium hover:bg-yellow-200" data-testid={`suspend-hotel-${hotel.id}`}>
-                        Simamisha
+                        {translate("Suspend", "Simamisha")}
                       </button>
                     )}
                     <button onClick={() => setDeleteConfirm(hotel)} className="flex items-center gap-1 bg-red-100 text-red-700 px-2.5 py-1 rounded text-xs font-medium hover:bg-red-200" data-testid={`delete-hotel-${hotel.id}`}>
-                      <Trash2 className="w-3 h-3" /> Futa
+                      <Trash2 className="w-3 h-3" /> {t("delete")}
                     </button>
                   </div>
                 </td>
@@ -312,19 +342,19 @@ const AdminHotels = () => {
             ))}
           </tbody>
         </table>
-        {filteredHotels.length === 0 && <div className="text-center py-12 text-[#A1A1AA]">Hakuna hoteli</div>}
+        {filteredHotels.length === 0 && <div className="text-center py-12 text-[#A1A1AA]">{translate("No hotels found", "Hakuna hoteli")}</div>}
       </div>
       {attachModal && <AttachOwnerModal hotel={attachModal} onClose={() => setAttachModal(null)} onSuccess={() => { setAttachModal(null); fetchHotels(); }} />}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="delete-hotel-modal">
           <div className="bg-white rounded-xl w-full max-w-sm p-6">
-            <h3 className="font-['Outfit'] text-lg font-semibold text-[#18181B] mb-2">Futa Hotel?</h3>
+            <h3 className="font-['Outfit'] text-lg font-semibold text-[#18181B] mb-2">{translate("Delete hotel?", "Futa Hotel?")}</h3>
             <p className="text-sm text-[#52525B] mb-4">
-              Una uhakika unataka kufuta <strong>{deleteConfirm.name}</strong>? Kitendo hiki hakiwezi kutenduliwa.
+              {translate(`Are you sure you want to delete ${deleteConfirm.name}? This action cannot be undone.`, `Una uhakika unataka kufuta ${deleteConfirm.name}? Kitendo hiki hakiwezi kutenduliwa.`)}
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2 border border-border rounded-lg font-medium hover:bg-[#F4F4F5]">Ghairi</button>
-              <button onClick={deleteHotel} className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600" data-testid="confirm-delete-hotel">Futa</button>
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2 border border-border rounded-lg font-medium hover:bg-[#F4F4F5]">{t("cancel")}</button>
+              <button onClick={deleteHotel} className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600" data-testid="confirm-delete-hotel">{t("delete")}</button>
             </div>
           </div>
         </div>
@@ -340,6 +370,8 @@ const AdminHotelPhotos = () => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { lang } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
 
   const fetchData = async () => {
     try {
@@ -356,7 +388,7 @@ const AdminHotelPhotos = () => {
   useEffect(() => { fetchData(); }, [hotelId]);
 
   if (loading) return <LoadingSpinner />;
-  if (!hotel) return <div className="text-center py-12">Hotel haipatikani</div>;
+  if (!hotel) return <div className="text-center py-12">{translate("Hotel not found", "Hotel haipatikani")}</div>;
 
   return (
     <div className="space-y-6">
@@ -366,7 +398,7 @@ const AdminHotelPhotos = () => {
         </button>
         <div>
           <h1 className="font-['Outfit'] text-2xl font-bold text-[#18181B]">{hotel.name}</h1>
-          <p className="text-[#52525B]">Simamia picha za hotel ({photos.length} picha)</p>
+          <p className="text-[#52525B]">{translate(`Manage hotel photos (${photos.length} photos)`, `Simamia picha za hotel (${photos.length} picha)`)}</p>
         </div>
       </div>
       <div className="bg-white rounded-xl border border-border p-6">
@@ -387,31 +419,33 @@ const AdminHotelPhotos = () => {
 const AttachOwnerModal = ({ hotel, onClose, onSuccess }) => {
   const [form, setForm] = useState({ owner_name: "", owner_phone: "", owner_email: "" });
   const [loading, setLoading] = useState(false);
+  const { lang, t } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       await api.post(`/admin/hotels/${hotel.id}/attach-owner`, form);
-      toast.success(`Mmiliki amewekwa kwa ${hotel.name}`);
+      toast.success(translate(`Owner attached to ${hotel.name}`, `Mmiliki amewekwa kwa ${hotel.name}`));
       onSuccess();
-    } catch (err) { toast.error(err.response?.data?.detail || "Imeshindikana"); }
+    } catch (err) { toast.error(err.response?.data?.detail || translate("Failed", "Imeshindikana")); }
     finally { setLoading(false); }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="attach-owner-modal">
       <div className="bg-white rounded-xl w-full max-w-md p-6">
-        <h3 className="font-['Outfit'] text-xl font-semibold text-[#18181B] mb-2">Weka Mmiliki</h3>
-        <p className="text-sm text-[#A1A1AA] mb-6">Hotel: {hotel.name}</p>
+        <h3 className="font-['Outfit'] text-xl font-semibold text-[#18181B] mb-2">{translate("Attach Owner", "Weka Mmiliki")}</h3>
+        <p className="text-sm text-[#A1A1AA] mb-6">{translate("Hotel", "Hotel")}: {hotel.name}</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[#18181B] mb-1">Jina Kamili</label>
+            <label className="block text-sm font-medium text-[#18181B] mb-1">{translate("Full Name", "Jina Kamili")}</label>
             <input type="text" required value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })}
               className="w-full px-4 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" data-testid="owner-name-input" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#18181B] mb-1">Simu (+255...)</label>
+            <label className="block text-sm font-medium text-[#18181B] mb-1">{translate("Phone (+255...)", "Simu (+255...)")}</label>
             <input type="tel" required value={form.owner_phone} onChange={(e) => setForm({ ...form, owner_phone: e.target.value })}
               className="w-full px-4 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" data-testid="owner-phone-input" />
           </div>
@@ -421,9 +455,9 @@ const AttachOwnerModal = ({ hotel, onClose, onSuccess }) => {
               className="w-full px-4 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" data-testid="owner-email-input" />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-border rounded-lg font-medium hover:bg-[#F4F4F5]">Ghairi</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-border rounded-lg font-medium hover:bg-[#F4F4F5]">{t("cancel")}</button>
             <button type="submit" disabled={loading} className="flex-1 py-2 bg-[#9A3324] text-white rounded-lg font-medium hover:bg-[#7A2A1D] disabled:opacity-50" data-testid="submit-attach-owner">
-              {loading ? "..." : "Weka Mmiliki"}
+              {loading ? "..." : translate("Attach Owner", "Weka Mmiliki")}
             </button>
           </div>
         </form>
@@ -436,6 +470,8 @@ const AttachOwnerModal = ({ hotel, onClose, onSuccess }) => {
 const AdminOwners = () => {
   const [pendingOwners, setPendingOwners] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { lang } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
 
   useEffect(() => { fetchData(); }, []);
   const fetchData = async () => {
@@ -445,12 +481,12 @@ const AdminOwners = () => {
   };
 
   const approveOwner = async (userId) => {
-    try { await api.put(`/admin/users/${userId}/verify`); toast.success("Mmiliki amethibitishwa!"); fetchData(); }
-    catch (err) { toast.error("Imeshindikana"); }
+    try { await api.put(`/admin/users/${userId}/verify`); toast.success(translate("Owner approved!", "Mmiliki amethibitishwa!")); fetchData(); }
+    catch (err) { toast.error(translate("Failed", "Imeshindikana")); }
   };
   const rejectOwner = async (userId) => {
-    try { await api.put(`/admin/users/${userId}/reject`); toast.success("Mmiliki amekataliwa"); fetchData(); }
-    catch (err) { toast.error("Imeshindikana"); }
+    try { await api.put(`/admin/users/${userId}/reject`); toast.success(translate("Owner rejected", "Mmiliki amekataliwa")); fetchData(); }
+    catch (err) { toast.error(translate("Failed", "Imeshindikana")); }
   };
 
   if (loading) return <LoadingSpinner />;
@@ -458,13 +494,13 @@ const AdminOwners = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">Wamiliki wa Hoteli</h1>
-        <p className="text-[#52525B]">Thibitisha na simamia wamiliki</p>
+        <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">{translate("Hotel Owners", "Wamiliki wa Hoteli")}</h1>
+        <p className="text-[#52525B]">{translate("Approve and manage owners", "Thibitisha na simamia wamiliki")}</p>
       </div>
       {pendingOwners.length > 0 ? (
         <div className="bg-[#FEF3C7] rounded-xl border border-yellow-300 p-4">
           <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" /> Wamiliki {pendingOwners.length} Wanasubiri Uthibitishaji
+            <AlertTriangle className="w-5 h-5" /> {translate(`${pendingOwners.length} owners awaiting approval`, `Wamiliki ${pendingOwners.length} Wanasubiri Uthibitishaji`)}
           </h3>
           <div className="space-y-3">
             {pendingOwners.map((owner) => (
@@ -478,10 +514,10 @@ const AdminOwners = () => {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => approveOwner(owner.id)} className="flex items-center gap-1 bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600" data-testid={`approve-owner-${owner.id}`}>
-                    <Check className="w-4 h-4" /> Thibitisha
+                    <Check className="w-4 h-4" /> {translate("Approve", "Thibitisha")}
                   </button>
                   <button onClick={() => rejectOwner(owner.id)} className="flex items-center gap-1 bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-200" data-testid={`reject-owner-${owner.id}`}>
-                    <X className="w-4 h-4" /> Kataa
+                    <X className="w-4 h-4" /> {translate("Reject", "Kataa")}
                   </button>
                 </div>
               </div>
@@ -491,7 +527,7 @@ const AdminOwners = () => {
       ) : (
         <div className="bg-green-50 rounded-xl border border-green-200 p-4 text-center">
           <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
-          <p className="text-green-800 font-medium">Hakuna wamiliki wanaosubiri uthibitishaji</p>
+          <p className="text-green-800 font-medium">{translate("No pending owners", "Hakuna wamiliki wanaosubiri uthibitishaji")}</p>
         </div>
       )}
     </div>
@@ -511,6 +547,8 @@ const AdminCashiers = () => {
   const [newPassword, setNewPassword] = useState(null);
   const [formData, setFormData] = useState({ full_name: "", phone: "", email: "", hotel_id: "" });
   const [submitLoading, setSubmitLoading] = useState(false);
+  const { lang, t } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
 
   useEffect(() => { fetchCashiers(); fetchHotels(); }, []);
   const fetchCashiers = async () => {
@@ -525,9 +563,9 @@ const AdminCashiers = () => {
     e.preventDefault(); setSubmitLoading(true);
     try {
       await api.post("/cashiers", formData);
-      toast.success("Mweka Hazina ameongezwa! SMS imetumwa.");
+      toast.success(translate("Cashier added! SMS sent.", "Mweka Hazina ameongezwa! SMS imetumwa."));
       setShowAddModal(false); setFormData({ full_name: "", phone: "", email: "", hotel_id: "" }); fetchCashiers();
-    } catch (err) { toast.error(err.response?.data?.detail || "Imeshindikana"); } finally { setSubmitLoading(false); }
+    } catch (err) { toast.error(err.response?.data?.detail || translate("Failed", "Imeshindikana")); } finally { setSubmitLoading(false); }
   };
 
   const handleEditCashier = async (e) => {
@@ -538,29 +576,29 @@ const AdminCashiers = () => {
       if (editModal.phone !== editModal._orig_phone) body.phone = editModal.phone;
       if (editModal.assigned_hotel_id !== editModal._orig_hotel) body.assigned_hotel_id = editModal.assigned_hotel_id;
       await api.patch(`/cashiers/${editModal.id}`, body);
-      toast.success("Cashier amesasishwa"); setEditModal(null); fetchCashiers();
-    } catch (err) { toast.error(err.response?.data?.detail || "Imeshindikana"); } finally { setSubmitLoading(false); }
+      toast.success(translate("Cashier updated", "Cashier amesasishwa")); setEditModal(null); fetchCashiers();
+    } catch (err) { toast.error(err.response?.data?.detail || translate("Failed", "Imeshindikana")); } finally { setSubmitLoading(false); }
   };
 
   const handleResetPassword = async () => {
     try {
       const res = await api.post(`/cashiers/${resetModal.id}/reset-password`);
-      setNewPassword(res.data.new_password); toast.success("Neno la siri limewekwa upya + SMS imetumwa");
-    } catch (err) { toast.error(err.response?.data?.detail || "Imeshindikana"); }
+      setNewPassword(res.data.new_password); toast.success(translate("Password reset + SMS sent", "Neno la siri limewekwa upya + SMS imetumwa"));
+    } catch (err) { toast.error(err.response?.data?.detail || translate("Failed", "Imeshindikana")); }
   };
 
   const handleToggle = async () => {
     try {
       await api.put(`/cashiers/${toggleModal.id}/toggle-status-sms`);
-      toast.success("Hali imebadilishwa + SMS imetumwa"); setToggleModal(null); fetchCashiers();
-    } catch (err) { toast.error(err.response?.data?.detail || "Imeshindikana"); }
+      toast.success(translate("Status updated + SMS sent", "Hali imebadilishwa + SMS imetumwa")); setToggleModal(null); fetchCashiers();
+    } catch (err) { toast.error(err.response?.data?.detail || translate("Failed", "Imeshindikana")); }
   };
 
   const handleViewPerformance = async (cashier) => {
     try {
       const res = await api.get(`/cashiers/${cashier.id}/performance`);
       setPerfModal(res.data);
-    } catch (err) { toast.error("Imeshindikana kupakia"); }
+    } catch (err) { toast.error(translate("Failed to load", "Imeshindikana kupakia")); }
   };
 
   if (loading) return <LoadingSpinner />;
@@ -569,23 +607,23 @@ const AdminCashiers = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">Weka Hazina Wote</h1>
-          <p className="text-[#52525B]">Simamia cashier wote kwenye platform</p>
+          <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">{translate("All Cashiers", "Weka Hazina Wote")}</h1>
+          <p className="text-[#52525B]">{translate("Manage every cashier on the platform", "Simamia cashier wote kwenye platform")}</p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-[#0F4C5C] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#0A3844] transition-all" data-testid="admin-add-cashier-btn">
-          <Plus className="w-4 h-4" /> Ongeza Mweka Hazina
+          <Plus className="w-4 h-4" /> {translate("Add Cashier", "Ongeza Mweka Hazina")}
         </button>
       </div>
       <div className="bg-white rounded-xl border border-border overflow-hidden">
         <table className="w-full" data-testid="admin-cashiers-table">
           <thead className="bg-[#F4F4F5]">
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">Jina</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Name", "Jina")}</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">Email</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">Simu</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Phone", "Simu")}</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">Hotel</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">Hali</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">Vitendo</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{t("status")}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{t("actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -599,43 +637,43 @@ const AdminCashiers = () => {
                 <td className="px-4 py-3 text-sm text-[#52525B]">{c.assigned_hotel_name}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${c.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                    {c.is_active ? "Active" : "Inactive"}
+                    {c.is_active ? translate("Active", "Hai") : translate("Inactive", "Imezimwa")}
                   </span>
                 </td>
                 <td className="px-4 py-3 flex items-center gap-2">
                   <button onClick={() => setEditModal({...c, _orig_name: c.full_name, _orig_phone: c.phone, _orig_hotel: c.assigned_hotel_id})}
-                    className="px-2 py-1 text-xs font-medium text-[#0F4C5C] hover:bg-[#F4F4F5] rounded" data-testid={`edit-cashier-${c.id}`}>Hariri</button>
+                    className="px-2 py-1 text-xs font-medium text-[#0F4C5C] hover:bg-[#F4F4F5] rounded" data-testid={`edit-cashier-${c.id}`}>{t("edit")}</button>
                   <button onClick={() => { setResetModal(c); setNewPassword(null); }}
-                    className="px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded" data-testid={`reset-pwd-${c.id}`}>Weka Upya</button>
+                    className="px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded" data-testid={`reset-pwd-${c.id}`}>{translate("Reset", "Weka Upya")}</button>
                   <button onClick={() => setToggleModal(c)}
                     className={`px-2 py-1 text-xs font-medium rounded ${c.is_active ? "text-red-600 hover:bg-red-50" : "text-green-600 hover:bg-green-50"}`}
-                    data-testid={`toggle-cashier-${c.id}`}>{c.is_active ? "Zima" : "Washa"}</button>
+                    data-testid={`toggle-cashier-${c.id}`}>{c.is_active ? translate("Deactivate", "Zima") : translate("Activate", "Washa")}</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {cashiers.length === 0 && <div className="text-center py-12 text-[#A1A1AA]">Hakuna weka hazina</div>}
+        {cashiers.length === 0 && <div className="text-center py-12 text-[#A1A1AA]">{translate("No cashiers", "Hakuna weka hazina")}</div>}
       </div>
 
       {/* Add Cashier Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md" data-testid="add-cashier-modal">
-            <div className="p-5 border-b border-border"><h2 className="font-['Outfit'] text-lg font-bold">Ongeza Mweka Hazina</h2><p className="text-xs text-[#A1A1AA] mt-1">Neno la siri la muda litatumwa kwa SMS</p></div>
+            <div className="p-5 border-b border-border"><h2 className="font-['Outfit'] text-lg font-bold">{translate("Add Cashier", "Ongeza Mweka Hazina")}</h2><p className="text-xs text-[#A1A1AA] mt-1">{translate("A temporary password will be sent via SMS", "Neno la siri la muda litatumwa kwa SMS")}</p></div>
             <form onSubmit={handleAddCashier} className="p-5 space-y-3">
-              <div><label className="block text-xs font-medium text-[#52525B] mb-1">Jina Kamili</label><input type="text" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="new-cashier-name" /></div>
+              <div><label className="block text-xs font-medium text-[#52525B] mb-1">{translate("Full Name", "Jina Kamili")}</label><input type="text" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="new-cashier-name" /></div>
               <div><label className="block text-xs font-medium text-[#52525B] mb-1">Email</label><input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="new-cashier-email" /></div>
-              <div><label className="block text-xs font-medium text-[#52525B] mb-1">Simu (+255)</label><input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="0712345678" className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="new-cashier-phone" /></div>
+              <div><label className="block text-xs font-medium text-[#52525B] mb-1">{translate("Phone (+255)", "Simu (+255)")}</label><input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="0712345678" className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="new-cashier-phone" /></div>
               <div><label className="block text-xs font-medium text-[#52525B] mb-1">Hotel</label>
                 <select value={formData.hotel_id} onChange={e => setFormData({...formData, hotel_id: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required>
-                  <option value="">Chagua Hotel</option>
+                  <option value="">{translate("Select Hotel", "Chagua Hotel")}</option>
                   {hotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                 </select>
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">Ghairi</button>
-                <button type="submit" disabled={submitLoading} className="flex-1 py-2.5 bg-[#0F4C5C] text-white rounded-lg text-sm font-medium hover:bg-[#0A3844] disabled:opacity-50" data-testid="submit-add-cashier">{submitLoading ? "..." : "Ongeza"}</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">{t("cancel")}</button>
+                <button type="submit" disabled={submitLoading} className="flex-1 py-2.5 bg-[#0F4C5C] text-white rounded-lg text-sm font-medium hover:bg-[#0A3844] disabled:opacity-50" data-testid="submit-add-cashier">{submitLoading ? "..." : translate("Add", "Ongeza")}</button>
               </div>
             </form>
           </div>
@@ -646,19 +684,19 @@ const AdminCashiers = () => {
       {editModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md" data-testid="edit-cashier-modal">
-            <div className="p-5 border-b border-border"><h2 className="font-['Outfit'] text-lg font-bold">Hariri Mweka Hazina</h2><p className="text-xs text-[#A1A1AA] mt-1">Email haiwezi kubadilishwa</p></div>
+            <div className="p-5 border-b border-border"><h2 className="font-['Outfit'] text-lg font-bold">{t("edit")} {translate("Cashier", "Mweka Hazina")}</h2><p className="text-xs text-[#A1A1AA] mt-1">{translate("Email cannot be changed", "Email haiwezi kubadilishwa")}</p></div>
             <form onSubmit={handleEditCashier} className="p-5 space-y-3">
               <div><label className="block text-xs font-medium text-[#52525B] mb-1">Email</label><input type="email" value={editModal.email} disabled className="w-full px-3 py-2.5 rounded-lg border border-input text-sm bg-[#F4F4F5] text-[#A1A1AA]" /></div>
-              <div><label className="block text-xs font-medium text-[#52525B] mb-1">Jina Kamili</label><input type="text" value={editModal.full_name} onChange={e => setEditModal({...editModal, full_name: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="edit-cashier-name" /></div>
-              <div><label className="block text-xs font-medium text-[#52525B] mb-1">Simu</label><input type="tel" value={editModal.phone} onChange={e => setEditModal({...editModal, phone: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="edit-cashier-phone" /></div>
+              <div><label className="block text-xs font-medium text-[#52525B] mb-1">{translate("Full Name", "Jina Kamili")}</label><input type="text" value={editModal.full_name} onChange={e => setEditModal({...editModal, full_name: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="edit-cashier-name" /></div>
+              <div><label className="block text-xs font-medium text-[#52525B] mb-1">{translate("Phone", "Simu")}</label><input type="tel" value={editModal.phone} onChange={e => setEditModal({...editModal, phone: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]" required data-testid="edit-cashier-phone" /></div>
               <div><label className="block text-xs font-medium text-[#52525B] mb-1">Hotel</label>
                 <select value={editModal.assigned_hotel_id} onChange={e => setEditModal({...editModal, assigned_hotel_id: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C5C]">
                   {hotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                 </select>
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setEditModal(null)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">Ghairi</button>
-                <button type="submit" disabled={submitLoading} className="flex-1 py-2.5 bg-[#0F4C5C] text-white rounded-lg text-sm font-medium hover:bg-[#0A3844] disabled:opacity-50" data-testid="submit-edit-cashier">{submitLoading ? "..." : "Hifadhi"}</button>
+                <button type="button" onClick={() => setEditModal(null)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">{t("cancel")}</button>
+                <button type="submit" disabled={submitLoading} className="flex-1 py-2.5 bg-[#0F4C5C] text-white rounded-lg text-sm font-medium hover:bg-[#0A3844] disabled:opacity-50" data-testid="submit-edit-cashier">{submitLoading ? "..." : t("save")}</button>
               </div>
             </form>
           </div>
@@ -671,23 +709,26 @@ const AdminCashiers = () => {
           <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4" data-testid="reset-pwd-modal">
             {!newPassword ? (
               <>
-                <h3 className="font-['Outfit'] text-lg font-bold">Weka Upya Neno la Siri</h3>
-                <p className="text-sm text-[#52525B]">Je, una uhakika unataka kuweka upya neno la siri la <span className="font-bold">{resetModal.full_name}</span>?</p>
+                <h3 className="font-['Outfit'] text-lg font-bold">{translate("Reset Password", "Weka Upya Neno la Siri")}</h3>
+                <p className="text-sm text-[#52525B]">{translate(
+                  `Are you sure you want to reset ${resetModal.full_name}'s password?`,
+                  `Je, una uhakika unataka kuweka upya neno la siri la ${resetModal.full_name}?`
+                )}</p>
                 <div className="flex gap-3">
-                  <button onClick={() => setResetModal(null)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">Ghairi</button>
-                  <button onClick={handleResetPassword} className="flex-1 py-2.5 bg-[#0F4C5C] text-white rounded-lg text-sm font-medium hover:bg-[#0A3844]" data-testid="confirm-reset-btn">Thibitisha</button>
+                  <button onClick={() => setResetModal(null)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">{t("cancel")}</button>
+                  <button onClick={handleResetPassword} className="flex-1 py-2.5 bg-[#0F4C5C] text-white rounded-lg text-sm font-medium hover:bg-[#0A3844]" data-testid="confirm-reset-btn">{translate("Confirm", "Thibitisha")}</button>
                 </div>
               </>
             ) : (
               <>
-                <h3 className="font-['Outfit'] text-lg font-bold">Neno la Siri Jipya</h3>
-                <p className="text-sm text-[#52525B]">Nakili na umpe mweka hazina:</p>
+                <h3 className="font-['Outfit'] text-lg font-bold">{translate("New Password", "Neno la Siri Jipya")}</h3>
+                <p className="text-sm text-[#52525B]">{translate("Copy and share with the cashier:", "Nakili na umpe mweka hazina:")}</p>
                 <div className="bg-[#F4F4F5] rounded-lg p-4 flex items-center justify-between">
                   <span className="font-mono text-lg font-bold text-[#18181B]" data-testid="new-password-display">{newPassword}</span>
-                  <button onClick={() => { navigator.clipboard.writeText(newPassword); toast.success("Imenakiliwa!"); }} className="px-3 py-1 bg-[#0F4C5C] text-white text-xs rounded-lg">Nakili</button>
+                  <button onClick={() => { navigator.clipboard.writeText(newPassword); toast.success(translate("Copied", "Imenakiliwa!")); }} className="px-3 py-1 bg-[#0F4C5C] text-white text-xs rounded-lg">{translate("Copy", "Nakili")}</button>
                 </div>
-                <p className="text-xs text-[#A1A1AA]">SMS imetumwa kwa cashier pia.</p>
-                <button onClick={() => { setResetModal(null); setNewPassword(null); }} className="w-full py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">Funga</button>
+                <p className="text-xs text-[#A1A1AA]">{translate("SMS sent to cashier as well.", "SMS imetumwa kwa cashier pia.")}</p>
+                <button onClick={() => { setResetModal(null); setNewPassword(null); }} className="w-full py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">{translate("Close", "Funga")}</button>
               </>
             )}
           </div>
@@ -698,17 +739,23 @@ const AdminCashiers = () => {
       {toggleModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4" data-testid="toggle-status-modal">
-            <h3 className="font-['Outfit'] text-lg font-bold">{toggleModal.is_active ? "Zima Akaunti" : "Washa Akaunti"}</h3>
+            <h3 className="font-['Outfit'] text-lg font-bold">{toggleModal.is_active ? translate("Deactivate Account", "Zima Akaunti") : translate("Activate Account", "Washa Akaunti")}</h3>
             <p className="text-sm text-[#52525B]">
               {toggleModal.is_active
-                ? `Kuzima akaunti ya ${toggleModal.full_name} kutazuia uwezo wake wa kuingia. Je, unataka kuendelea?`
-                : `Washa akaunti ya ${toggleModal.full_name}?`}
+                ? translate(
+                  `Deactivating ${toggleModal.full_name}'s account will block access. Continue?`,
+                  `Kuzima akaunti ya ${toggleModal.full_name} kutazuia uwezo wake wa kuingia. Je, unataka kuendelea?`
+                )
+                : translate(
+                  `Activate ${toggleModal.full_name}'s account?`,
+                  `Washa akaunti ya ${toggleModal.full_name}?`
+                )}
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setToggleModal(null)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">Ghairi</button>
+              <button onClick={() => setToggleModal(null)} className="flex-1 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-[#F4F4F5]">{t("cancel")}</button>
               <button onClick={handleToggle}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium text-white ${toggleModal.is_active ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}`}
-                data-testid="confirm-toggle-btn">{toggleModal.is_active ? "Zima Akaunti" : "Washa Akaunti"}</button>
+                data-testid="confirm-toggle-btn">{toggleModal.is_active ? translate("Deactivate", "Zima Akaunti") : translate("Activate", "Washa Akaunti")}</button>
             </div>
           </div>
         </div>
@@ -732,21 +779,21 @@ const AdminCashiers = () => {
             </div>
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-4 gap-3">
-                <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-600">Walk-ins</p><p className="text-xl font-bold text-green-700">{perfModal.this_month?.walkins_recorded}</p></div>
-                <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-600">Check-ins</p><p className="text-xl font-bold text-blue-700">{perfModal.this_month?.checkins_confirmed}</p></div>
-                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">Checkouts</p><p className="text-xl font-bold text-gray-700">{perfModal.this_month?.checkouts_processed}</p></div>
-                <div className="bg-[#0F4C5C]/10 rounded-lg p-3"><p className="text-xs text-[#0F4C5C]">Mapato</p><p className="text-xl font-bold text-[#0F4C5C]">TZS {(perfModal.this_month?.total_revenue || 0).toLocaleString()}</p></div>
+                <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-600">{translate("Walk-ins", "Walk-ins")}</p><p className="text-xl font-bold text-green-700">{perfModal.this_month?.walkins_recorded}</p></div>
+                <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-600">{translate("Check-ins", "Check-ins")}</p><p className="text-xl font-bold text-blue-700">{perfModal.this_month?.checkins_confirmed}</p></div>
+                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">{translate("Checkouts", "Checkouts")}</p><p className="text-xl font-bold text-gray-700">{perfModal.this_month?.checkouts_processed}</p></div>
+                <div className="bg-[#0F4C5C]/10 rounded-lg p-3"><p className="text-xs text-[#0F4C5C]">{translate("Revenue", "Mapato")}</p><p className="text-xl font-bold text-[#0F4C5C]">TZS {(perfModal.this_month?.total_revenue || 0).toLocaleString()}</p></div>
               </div>
               <div className="bg-white rounded-xl border border-border overflow-hidden">
-                <div className="px-4 py-3 border-b border-border"><h3 className="text-sm font-semibold">Shughuli (Mwezi Huu)</h3></div>
+                <div className="px-4 py-3 border-b border-border"><h3 className="text-sm font-semibold">{translate("Activity (This Month)", "Shughuli (Mwezi Huu)")}</h3></div>
                 {perfModal.activity_log?.length > 0 ? (
                   <table className="w-full">
                     <thead className="bg-[#F4F4F5]"><tr>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">Tarehe</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">Kitendo</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">Mgeni</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">Chumba</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">Kiasi</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Date", "Tarehe")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Action", "Kitendo")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Guest", "Mgeni")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Room", "Chumba")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Amount", "Kiasi")}</th>
                     </tr></thead>
                     <tbody className="divide-y divide-border">
                       {perfModal.activity_log.slice(0, 50).map(l => (
@@ -760,7 +807,7 @@ const AdminCashiers = () => {
                       ))}
                     </tbody>
                   </table>
-                ) : <div className="p-6 text-center text-sm text-[#A1A1AA]">Hakuna shughuli mwezi huu</div>}
+                ) : <div className="p-6 text-center text-sm text-[#A1A1AA]">{translate("No activity this month", "Hakuna shughuli mwezi huu")}</div>}
               </div>
             </div>
           </div>

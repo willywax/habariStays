@@ -19,7 +19,7 @@ distro==1.9.0
 dnspython==2.8.0
 ecdsa==0.19.1
 email-validator==2.3.0
-emergentintegrations==0.1.0
+# emergentintegrations==0.1.0  # Internal package - commented out
 et_xmlfile==2.0.0
 fastapi==0.110.1
 fastuuid==0.14.0
@@ -59,8 +59,16 @@ markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mccabe==0.7.0
 mdurl==0.1.2
+# MongoDB (legacy - kept for data migration)
 motor==3.3.1
 multidict==6.7.1
+
+# PostgreSQL + SQLAlchemy ORM
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+psycopg2-binary==2.9.10
+greenlet==3.1.1
 mypy==1.19.1
 mypy_extensions==1.1.0
 numpy==2.4.2
