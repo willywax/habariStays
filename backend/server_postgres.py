@@ -2867,8 +2867,30 @@ async def execute_import(
         "created_by": current_user["id"]
     })
     
+    skipped_duplicates = []
     for preview in previews:
         try:
+            # Check for duplicates by name+city or phone
+            existing_by_name = await crud.get_hotel_by_name_and_city(session, preview["name"], preview["city"])
+            if existing_by_name:
+                skipped_duplicates.append({
+                    "row": preview["row"],
+                    "name": preview["name"],
+                    "reason": f"Hotel with same name already exists in {preview['city']}",
+                    "existing_id": existing_by_name.id
+                })
+                continue
+            
+            existing_by_phone = await crud.get_hotel_by_phone(session, preview.get("phone", ""))
+            if existing_by_phone:
+                skipped_duplicates.append({
+                    "row": preview["row"],
+                    "name": preview["name"],
+                    "reason": f"Hotel with phone {preview['phone']} already exists",
+                    "existing_id": existing_by_phone.id
+                })
+                continue
+            
             # Generate hotel code
             code = generate_hotel_code()
             
@@ -2909,8 +2931,8 @@ async def execute_import(
     
     # Update batch record with final counts
     batch_record.imported = len(imported)
-    batch_record.skipped = len(failed)
-    batch_record.errors = failed
+    batch_record.skipped = len(failed) + len(skipped_duplicates)
+    batch_record.errors = failed + skipped_duplicates
     
     # Clean up preview
     del _import_previews[preview_id]
@@ -2918,9 +2940,11 @@ async def execute_import(
     return {
         "batch_id": batch_id,
         "imported": len(imported),
-        "skipped": len(failed),
+        "skipped": len(failed) + len(skipped_duplicates),
+        "duplicates": len(skipped_duplicates),
         "failed": len(failed),
         "errors": failed[:20],
+        "duplicate_details": skipped_duplicates[:20],
         "imported_hotels": imported[:20],
         "failed_imports": failed[:20]
     }

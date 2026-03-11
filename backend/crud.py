@@ -129,6 +129,31 @@ async def get_hotel_by_name(session: AsyncSession, name: str, exclude_id: str = 
     return result.scalar_one_or_none()
 
 
+async def get_hotel_by_name_and_city(session: AsyncSession, name: str, city: str) -> Optional[Hotel]:
+    """Check for duplicate hotel by name and city combination."""
+    result = await session.execute(
+        select(Hotel).where(
+            func.lower(Hotel.name) == func.lower(name),
+            func.lower(Hotel.city) == func.lower(city)
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_hotel_by_phone(session: AsyncSession, phone: str) -> Optional[Hotel]:
+    """Check for duplicate hotel by phone number."""
+    if not phone:
+        return None
+    # Normalize phone for comparison
+    normalized = phone.replace("+", "").replace(" ", "").replace("-", "")
+    result = await session.execute(
+        select(Hotel).where(
+            func.replace(func.replace(func.replace(Hotel.phone_number, "+", ""), " ", ""), "-", "") == normalized
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def create_hotel(session: AsyncSession, hotel_data: dict) -> Hotel:
     hotel = Hotel(**hotel_data)
     session.add(hotel)

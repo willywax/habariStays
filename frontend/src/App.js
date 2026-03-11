@@ -795,7 +795,7 @@ const LandingPage = () => {
                 <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
                   <h3 className="font-['Outfit'] font-bold text-white text-lg">{city.city}</h3>
                   <span className="px-2.5 py-1 bg-[#E07B2A] text-white text-xs font-bold rounded-full whitespace-nowrap">
-                    {city.hotel_count} {lang === "sw" ? "Hoteli" : "Hotels"}
+                    {city.hotel_count >= 50 ? "50+" : city.hotel_count >= 20 ? "20+" : city.hotel_count >= 10 ? "10+" : city.hotel_count} {lang === "sw" ? "Hoteli" : "Hotels"}
                   </span>
                 </div>
               </Link>
