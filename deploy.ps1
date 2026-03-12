@@ -85,13 +85,8 @@ function Deploy-Backend {
 function Deploy-Frontend {
     Write-Info "Deploying frontend..."
     
-    # Get backend URL
-    try {
-        $backendUrl = gcloud run services describe $BackendService --region $Region --format "value(status.url)" 2>$null
-    } catch {
-        Write-Warn "Backend not deployed yet. Using placeholder URL."
-        $backendUrl = "https://$BackendService-xxxxx.run.app"
-    }
+    # Use custom API domain
+    $backendUrl = "https://api.habaristays.com"
     
     Push-Location frontend
     
@@ -99,7 +94,7 @@ function Deploy-Frontend {
         # Build with API URL
         gcloud builds submit `
             --tag "gcr.io/$script:ProjectId/$FrontendService" `
-            --build-arg "REACT_APP_API_URL=$backendUrl" `
+            --build-arg "REACT_APP_BACKEND_URL=$backendUrl" `
             --quiet
         
         # Deploy

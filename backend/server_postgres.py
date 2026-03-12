@@ -28,7 +28,7 @@ import openpyxl
 from database import get_db_session, init_db, close_db, async_session_factory
 from models import (
     User, UserSession, Hotel, RoomType, Booking, Review,
-    CashierAssignment, CashierActivityLog, ImportBatch, generate_uuid
+    CashierAssignment, CashierActivityLog, ImportBatch, ImportPreview, generate_uuid
 )
 import crud
 
@@ -99,13 +99,17 @@ async def create_default_room_type(session: AsyncSession, hotel_id: str, price: 
 app = FastAPI(title="Habari Stays API", version="2.1.0")
 
 # CORS must be configured early - when allow_credentials=True, cannot use allow_origins=["*"]
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000,https://habaristays.com")
+cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+
+# Add CORS middleware with proper configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 api_router = APIRouter(prefix="/api")
@@ -294,8 +298,21 @@ def generate_booking_ref():
     return f"HS-{year}-{random_num}"
 
 def generate_hotel_code():
-    random_num = str(uuid.uuid4().int)[:3]
+    """Generate a hotel code with 6 random digits for lower collision probability."""
+    random_num = str(uuid.uuid4().int)[:6]
     return f"HTL-{random_num}"
+
+async def generate_unique_hotel_code(session: AsyncSession, max_attempts: int = 10):
+    """Generate a unique hotel code, checking database for duplicates."""
+    for _ in range(max_attempts):
+        code = generate_hotel_code()
+        result = await session.execute(
+            select(Hotel).where(Hotel.hotel_code == code)
+        )
+        if not result.scalar_one_or_none():
+            return code
+    # Fallback: use UUID-based code
+    return f"HTL-{str(uuid.uuid4())[:8].upper()}"
 
 def generate_temp_password():
     return str(uuid.uuid4())[:8]
@@ -587,9 +604,10 @@ async def create_hotel(
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
     
     hotel_id = generate_uuid()
+    hotel_code = await generate_unique_hotel_code(session)
     hotel = await crud.create_hotel(session, {
         "id": hotel_id,
-        "hotel_code": generate_hotel_code(),
+        "hotel_code": hotel_code,
         "owner_id": current_user["id"] if current_user["role"] == "owner" else None,
         "name": hotel_data.name,
         "description": hotel_data.description,
@@ -2363,9 +2381,10 @@ async def admin_create_hotel(
         raise HTTPException(status_code=400, detail="Hotel yenye jina hili ipo tayari")
     
     hotel_id = generate_uuid()
+    hotel_code = await generate_unique_hotel_code(session)
     hotel = await crud.create_hotel(session, {
         "id": hotel_id,
-        "hotel_code": generate_hotel_code(),
+        "hotel_code": hotel_code,
         "owner_id": body.get("owner_id"),
         "name": name,
         "description": body.get("description", ""),
@@ -2666,8 +2685,8 @@ def extract_city_from_address(address):
             return candidate
     return ""
 
-# Store latest preview for confirm step
-_import_previews = {}
+# Store latest preview for confirm step - using database now for Cloud Run compatibility
+# _import_previews = {}  # Deprecated: moved to database storage
 
 @api_router.post("/admin/import/preview")
 async def preview_import(
@@ -2810,7 +2829,16 @@ async def preview_import(
             errors.append({"row": row_num, "name": "", "error": str(e), "status": "error", "issues": [str(e)]})
     
     preview_id = str(uuid.uuid4())
-    _import_previews[preview_id] = previews
+    
+    # Store preview in database for persistence across Cloud Run instances
+    import_preview = ImportPreview(
+        id=preview_id,
+        preview_data=previews,
+        created_by=current_user["id"],
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)  # Expires in 1 hour
+    )
+    session.add(import_preview)
+    await session.commit()
     
     # Build combined preview list for frontend (valid + warnings + duplicates + errors)
     all_preview_rows = previews + duplicates + errors
@@ -2844,10 +2872,22 @@ async def execute_import(
     preview_id = body.get("preview_id")
     selected_rows = body.get("selected_rows")  # List of row numbers to import
     
-    if not preview_id or preview_id not in _import_previews:
+    # Fetch preview from database
+    result = await session.execute(
+        select(ImportPreview).where(ImportPreview.id == preview_id)
+    )
+    import_preview = result.scalar_one_or_none()
+    
+    if not import_preview:
         raise HTTPException(status_code=400, detail="Preview haipatikani au imeisha muda")
     
-    previews = _import_previews[preview_id]
+    # Check if preview has expired
+    if import_preview.expires_at and import_preview.expires_at < datetime.now(timezone.utc):
+        await session.delete(import_preview)
+        await session.commit()
+        raise HTTPException(status_code=400, detail="Preview imeisha muda, tafadhali pakia faili tena")
+    
+    previews = import_preview.preview_data
     if selected_rows:
         previews = [p for p in previews if p["row"] in selected_rows]
     
@@ -2891,8 +2931,8 @@ async def execute_import(
                 })
                 continue
             
-            # Generate hotel code
-            code = generate_hotel_code()
+            # Generate unique hotel code (checks database for duplicates)
+            code = await generate_unique_hotel_code(session)
             
             # Create hotel with correct field names matching Hotel model
             hotel_data = {
@@ -2923,6 +2963,8 @@ async def execute_import(
                 "code": code
             })
         except Exception as e:
+            # Rollback to clear the pending transaction state
+            await session.rollback()
             failed.append({
                 "row": preview["row"],
                 "name": preview["name"],
@@ -2934,8 +2976,9 @@ async def execute_import(
     batch_record.skipped = len(failed) + len(skipped_duplicates)
     batch_record.errors = failed + skipped_duplicates
     
-    # Clean up preview
-    del _import_previews[preview_id]
+    # Clean up preview from database
+    await session.delete(import_preview)
+    await session.commit()
     
     return {
         "batch_id": batch_id,
@@ -3024,7 +3067,13 @@ async def confirm_import(
     body = await request.json()
     preview_id = body.get("preview_id")
     
-    if not preview_id or preview_id not in _import_previews:
+    # Check if preview exists in database
+    result = await session.execute(
+        select(ImportPreview).where(ImportPreview.id == preview_id)
+    )
+    import_preview = result.scalar_one_or_none()
+    
+    if not import_preview:
         return {"message": "Preview expired, please re-upload", "status": "expired"}
     
     # Same as execute

@@ -75,20 +75,15 @@ deploy_backend() {
 deploy_frontend() {
     echo_info "Deploying frontend..."
     
-    # Get backend URL
-    BACKEND_URL=$(gcloud run services describe $BACKEND_SERVICE --region $REGION --format 'value(status.url)' 2>/dev/null || echo "")
-    
-    if [ -z "$BACKEND_URL" ]; then
-        echo_warn "Backend not deployed yet. Using placeholder URL."
-        BACKEND_URL="https://$BACKEND_SERVICE-xxxxx.run.app"
-    fi
+    # Use custom API domain
+    BACKEND_URL="https://api.habaristays.com"
     
     cd frontend
     
     # Build with API URL
     gcloud builds submit \
         --tag gcr.io/$PROJECT_ID/$FRONTEND_SERVICE \
-        --build-arg REACT_APP_API_URL=$BACKEND_URL \
+        --build-arg REACT_APP_BACKEND_URL=$BACKEND_URL \
         --quiet
     
     # Deploy

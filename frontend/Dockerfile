@@ -13,8 +13,8 @@ RUN yarn install --frozen-lockfile || npm ci
 COPY . .
 
 # Set build-time environment variables
-ARG REACT_APP_API_URL
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ARG REACT_APP_BACKEND_URL
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 
 # Build the application
 RUN yarn build || npm run build

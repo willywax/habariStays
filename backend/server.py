@@ -3466,10 +3466,13 @@ async def health_check():
 # Include router
 app.include_router(api_router)
 
+# CORS configuration
+cors_origins = ["http://localhost:3000", "http://localhost:8000", "https://habaristays.com"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

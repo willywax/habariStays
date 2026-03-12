@@ -426,3 +426,22 @@ class ImportBatch(Base):
             "created_by": self.created_by,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class ImportPreview(Base):
+    """Temporary storage for import previews - persists across Cloud Run requests."""
+    __tablename__ = "import_previews"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    preview_data = Column(JSON, nullable=False)  # Stores the list of preview items
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # For cleanup
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "preview_data": self.preview_data,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

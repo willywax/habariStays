@@ -3,6 +3,8 @@ Database Connection Layer for PostgreSQL with Async SQLAlchemy
 """
 
 import os
+import ssl
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -27,13 +29,43 @@ DATABASE_URL = os.environ.get(
 if DATABASE_URL.startswith('postgresql://'):
     DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://', 1)
 
+# Parse URL to handle SSL parameters for asyncpg
+parsed = urlparse(DATABASE_URL)
+query_params = parse_qs(parsed.query)
+
+# Check if SSL is required (from sslmode parameter)
+ssl_required = query_params.pop('sslmode', [''])[0] in ('require', 'verify-ca', 'verify-full')
+# Remove channel_binding as asyncpg doesn't support it
+query_params.pop('channel_binding', None)
+
+# Rebuild URL without problematic parameters
+clean_query = urlencode({k: v[0] for k, v in query_params.items()}, doseq=False)
+clean_url = urlunparse((
+    parsed.scheme,
+    parsed.netloc,
+    parsed.path,
+    parsed.params,
+    clean_query,
+    parsed.fragment
+))
+
+# Prepare connect args for SSL
+connect_args = {}
+if ssl_required or 'neon.tech' in DATABASE_URL:
+    # Create SSL context for secure connection
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    connect_args['ssl'] = ssl_context
+
 # Create async engine
 engine = create_async_engine(
-    DATABASE_URL,
+    clean_url,
     echo=os.environ.get('DB_ECHO', 'false').lower() == 'true',  # SQL logging
     pool_pre_ping=True,  # Verify connections are valid
     pool_size=10,
     max_overflow=20,
+    connect_args=connect_args,
 )
 
 # Create async session factory

@@ -1,0 +1,15 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/habari-stays-web'
+      - '--build-arg'
+      - 'REACT_APP_BACKEND_URL=${_BACKEND_URL}'
+      - '.'
+
+images:
+  - 'gcr.io/$PROJECT_ID/habari-stays-web'
+
+substitutions:
+  _BACKEND_URL: 'https://api.habaristays.com'
