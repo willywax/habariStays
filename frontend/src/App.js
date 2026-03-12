@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link,
 import axios from "axios";
 import { Toaster, toast } from "sonner";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { HelmetProvider, Helmet } from "react-helmet-async";
 import { getPhotoUrl, getCoverUrl } from "./components/PhotoManager";
 import "@/App.css";
 
@@ -663,6 +664,14 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
+      <Helmet>
+        <title>Book Hotels in Tanzania | Habari Stays</title>
+        <meta name="description" content="Find and book the best hotels across Tanzania. Compare prices, read reviews and book instantly. Hotels in Dar es Salaam, Arusha, Zanzibar, Moshi and more." />
+        <link rel="canonical" href="https://habaristays.com/" />
+        <meta property="og:title" content="Book Hotels in Tanzania | Habari Stays" />
+        <meta property="og:description" content="Find and book the best hotels across Tanzania. Compare prices, read reviews and book instantly." />
+        <meta property="og:url" content="https://habaristays.com/" />
+      </Helmet>
       <Navbar transparent />
 
       {/* Hero */}
@@ -1042,6 +1051,11 @@ const SearchPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
+      <Helmet>
+        <title>{filters.city ? `Hotels in ${filters.city}, Tanzania` : "Hotels in Tanzania"} | Habari Stays</title>
+        <meta name="description" content={filters.city ? `Find and book hotels in ${filters.city}, Tanzania. ${hotels.length} hotels available. Best prices guaranteed on Habari Stays.` : `Browse ${hotels.length} hotels across Tanzania. Compare prices, read reviews and book instantly.`} />
+        <link rel="canonical" href={`https://habaristays.com/search${filters.city ? `?city=${encodeURIComponent(filters.city)}` : ''}`} />
+      </Helmet>
       <Navbar />
       <div className="pt-24 pb-16 px-4">
         <div className="max-w-7xl mx-auto">
@@ -1146,10 +1160,42 @@ const HotelDetailPage = () => {
 
   const handleContactClick = () => { if (!user) { setShowLoginModal(true); } };
 
+  const coverImage = getCoverUrl(hotel.photos, "web") || hotel.cover_photo || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920";
+  const minPrice = rooms.length > 0 ? Math.min(...rooms.map(r => r.price_per_night)) : null;
+  const metaDescription = `Book ${hotel.name} in ${hotel.city}, Tanzania.${hotel.description ? " " + hotel.description.slice(0, 100) + "." : ""}${minPrice ? ` From TZS ${minPrice.toLocaleString()}/night.` : ""} Best rates on Habari Stays.`;
+
+  const hotelSchema = {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    "name": hotel.name,
+    "description": hotel.description || `Hotel in ${hotel.city}, Tanzania`,
+    "url": `https://habaristays.com/hotel/${hotel.id}`,
+    "image": coverImage,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": hotel.city,
+      "addressRegion": hotel.city,
+      "addressCountry": "TZ"
+    },
+    ...(minPrice && { "priceRange": `From TZS ${minPrice.toLocaleString()}/night` }),
+    ...(hotel.rating && { "aggregateRating": { "@type": "AggregateRating", "ratingValue": hotel.rating, "bestRating": "5", "ratingCount": hotel.review_count || 1 } })
+  };
+
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
+      <Helmet>
+        <title>{hotel.name} – Hotel in {hotel.city}, Tanzania | Habari Stays</title>
+        <meta name="description" content={metaDescription} />
+        <link rel="canonical" href={`https://habaristays.com/hotel/${hotel.id}`} />
+        <meta property="og:type" content="place" />
+        <meta property="og:title" content={`${hotel.name} | ${hotel.city} Hotel | Habari Stays`} />
+        <meta property="og:description" content={metaDescription} />
+        <meta property="og:image" content={coverImage} />
+        <meta property="og:url" content={`https://habaristays.com/hotel/${hotel.id}`} />
+        <script type="application/ld+json">{JSON.stringify(hotelSchema)}</script>
+      </Helmet>
       <Navbar />
-      
+
       {/* Hero */}
       <div className="relative h-96 pt-16">
         <img
@@ -1574,16 +1620,18 @@ function AppRouter() {
 // ================== APP ==================
 function App() {
   return (
-    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ""}>
-      <LanguageProvider>
-        <AuthProvider>
-          <Toaster position="top-right" richColors />
-          <BrowserRouter>
-            <AppRouter />
-          </BrowserRouter>
-        </AuthProvider>
-      </LanguageProvider>
-    </GoogleOAuthProvider>
+    <HelmetProvider>
+      <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ""}>
+        <LanguageProvider>
+          <AuthProvider>
+            <Toaster position="top-right" richColors />
+            <BrowserRouter>
+              <AppRouter />
+            </BrowserRouter>
+          </AuthProvider>
+        </LanguageProvider>
+      </GoogleOAuthProvider>
+    </HelmetProvider>
   );
 }
 

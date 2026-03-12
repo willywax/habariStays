@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Block admin and private routes
+Disallow: /admin
+Disallow: /owner
+Disallow: /cashier
+Disallow: /booking/
+
+Sitemap: https://habaristays.com/sitemap.xml
