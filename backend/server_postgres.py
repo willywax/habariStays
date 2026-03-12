@@ -55,6 +55,9 @@ SELCOM_TILL_NUMBER = os.environ.get('SELCOM_TILL_NUMBER', '123456')
 CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', 'diupey6vs')
 CLOUDINARY_UPLOAD_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', 'habari_stays_upload')
 
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+
 # Booking expiry time in seconds
 BOOKING_EXPIRY_SECONDS = 120  # 2 minutes
 
@@ -129,6 +132,9 @@ class UserCreate(UserBase):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class GoogleAuthRequest(BaseModel):
+    access_token: str
 
 class UserResponse(BaseModel):
     id: str
@@ -591,6 +597,81 @@ async def logout(response: Response, request: Request, session: AsyncSession = D
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
     return UserResponse(**{k: v for k, v in current_user.items() if k in UserResponse.model_fields})
+
+@api_router.post("/auth/google", response_model=TokenResponse)
+async def google_auth(data: GoogleAuthRequest, response: Response, session: AsyncSession = Depends(get_db_session)):
+    # Verify token with Google and get user info
+    try:
+        async with httpx.AsyncClient() as client:
+            userinfo_resp = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {data.access_token}"},
+                timeout=10,
+            )
+        if userinfo_resp.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid Google token")
+        userinfo = userinfo_resp.json()
+    except httpx.RequestError:
+        raise HTTPException(status_code=503, detail="Could not reach Google servers")
+
+    email = userinfo.get("email")
+    if not email:
+        raise HTTPException(status_code=401, detail="Google account has no email")
+
+    full_name = userinfo.get("name") or email.split("@")[0]
+    picture = userinfo.get("picture")
+
+    # Find existing user or create a new one
+    user = await crud.get_user_by_email(session, email)
+    if not user:
+        user_id = generate_uuid()
+        user = await crud.create_user(session, {
+            "id": user_id,
+            "email": email,
+            "full_name": full_name,
+            "phone": "",
+            "role": "traveler",
+            "password_hash": get_password_hash(str(uuid.uuid4())),
+            "is_active": True,
+            "is_verified": True,
+            "picture": picture,
+        })
+    else:
+        if not user.is_active:
+            raise HTTPException(status_code=401, detail="Akaunti imezimwa / Account disabled")
+        await crud.update_user(session, user.id, {
+            "last_login": datetime.now(timezone.utc),
+            "picture": picture or user.picture,
+        })
+
+    token = create_access_token({"sub": user.id, "role": user.role})
+
+    session_token = str(uuid.uuid4())
+    expires = datetime.now(timezone.utc) + timedelta(days=7)
+    await crud.create_user_session(session, user.id, session_token, expires)
+
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        max_age=60 * 60 * 24 * 7,
+        samesite="lax",
+    )
+
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse(
+            id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            phone=user.phone or "",
+            role=user.role,
+            assigned_hotel_id=user.assigned_hotel_id,
+            is_verified=user.is_verified,
+            picture=user.picture,
+            created_at=user.created_at.isoformat(),
+        ),
+    )
 
 # ===================== HOTEL ENDPOINTS =====================
 

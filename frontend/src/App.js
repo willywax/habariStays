@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback } fr
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { getPhotoUrl, getCoverUrl } from "./components/PhotoManager";
 import "@/App.css";
 
@@ -303,22 +304,15 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const checkAuth = useCallback(async () => {
-    // CRITICAL: If returning from OAuth callback, skip the /me check
-    // AuthCallback will exchange the session_id and establish the session first
-    if (window.location.hash?.includes('session_id=')) {
-      setLoading(false);
-      return;
-    }
-    
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
-    
+
     if (token && savedUser) {
       setUser(JSON.parse(savedUser));
       setLoading(false);
       return;
     }
-    
+
     // Try to get user from session
     try {
       const response = await api.get("/auth/me");
@@ -362,14 +356,23 @@ const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     setUser(null);
   };
-  
+
+  const loginWithGoogle = async (accessToken) => {
+    const response = await api.post("/auth/google", { access_token: accessToken });
+    const { access_token, user: userData } = response.data;
+    localStorage.setItem("token", access_token);
+    localStorage.setItem("user", JSON.stringify(userData));
+    setUser(userData);
+    return userData;
+  };
+
   const setUserData = (userData) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, setUserData }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loginWithGoogle, loading, setUserData }}>
       {children}
     </AuthContext.Provider>
   );
@@ -397,40 +400,6 @@ const LoadingSpinner = () => (
 
 // Format TZS
 const formatTZS = (amount) => `TZS ${amount?.toLocaleString() || 0}`;
-
-// Auth Callback for Google OAuth
-const AuthCallback = () => {
-  const navigate = useNavigate();
-  const { setUserData } = useAuth();
-  const hasProcessed = React.useRef(false);
-  
-  useEffect(() => {
-    if (hasProcessed.current) return;
-    hasProcessed.current = true;
-    
-    const hash = window.location.hash;
-    const sessionId = new URLSearchParams(hash.replace('#', '?')).get('session_id');
-    
-    if (sessionId) {
-      api.post("/auth/session", { session_id: sessionId })
-        .then(res => {
-          const userData = res.data.user;
-          setUserData(userData);
-          localStorage.setItem("token", sessionId);
-          toast.success("Umeingia kikamilifu!");
-          navigate("/", { replace: true, state: { user: userData } });
-        })
-        .catch(err => {
-          toast.error("Login imeshindikana");
-          navigate("/login", { replace: true });
-        });
-    } else {
-      navigate("/login", { replace: true });
-    }
-  }, [navigate, setUserData]);
-  
-  return <LoadingSpinner />;
-};
 
 // ================== NAVBAR ==================
 const Navbar = ({ transparent = false }) => {
@@ -1552,14 +1521,6 @@ const RegisterHotelPage = React.lazy(() => import("./pages/AuthPages").then(m =>
 
 // ================== APP ROUTER ==================
 function AppRouter() {
-  const location = useLocation();
-  
-  // CRITICAL: Check for session_id synchronously during render
-  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-  if (location.hash?.includes('session_id=')) {
-    return <AuthCallback />;
-  }
-  
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
@@ -1613,14 +1574,16 @@ function AppRouter() {
 // ================== APP ==================
 function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <Toaster position="top-right" richColors />
-        <BrowserRouter>
-          <AppRouter />
-        </BrowserRouter>
-      </AuthProvider>
-    </LanguageProvider>
+    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ""}>
+      <LanguageProvider>
+        <AuthProvider>
+          <Toaster position="top-right" richColors />
+          <BrowserRouter>
+            <AppRouter />
+          </BrowserRouter>
+        </AuthProvider>
+      </LanguageProvider>
+    </GoogleOAuthProvider>
   );
 }
 

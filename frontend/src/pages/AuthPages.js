@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useGoogleLogin } from "@react-oauth/google";
 import { api, LoadingSpinner } from "../App";
 import { useAuth, useLang } from "../App";
 
@@ -9,7 +10,7 @@ export const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, user } = useAuth();
+  const { login, loginWithGoogle, user } = useAuth();
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,11 +43,21 @@ export const LoginPage = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + '/';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-  };
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      try {
+        const userData = await loginWithGoogle(tokenResponse.access_token);
+        toast.success(lang === "sw" ? "Umeingia kikamilifu!" : "Login successful!");
+        navigate(getDashboardPath(userData.role));
+      } catch (err) {
+        toast.error(err.response?.data?.detail || (lang === "sw" ? "Imeshindikana kuingia" : "Login failed"));
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => toast.error(lang === "sw" ? "Google login imeshindikana" : "Google sign-in failed"),
+  });
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] flex items-center justify-center px-4">
@@ -68,8 +79,9 @@ export const LoginPage = () => {
         <div className="bg-white rounded-2xl p-8 shadow-sm border border-[#1A1A1A]/10">
           {/* Google Login */}
           <button
-            onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#1A1A1A]/20 rounded-lg font-medium hover:bg-[#FAFAF7] transition-all mb-6"
+            onClick={() => googleLogin()}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#1A1A1A]/20 rounded-lg font-medium hover:bg-[#FAFAF7] transition-all mb-6 disabled:opacity-50"
             data-testid="google-login-btn"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -153,7 +165,7 @@ export const RegisterPage = () => {
     role: "traveler"
   });
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const { t, lang } = useLang();
   const navigate = useNavigate();
 
@@ -171,11 +183,21 @@ export const RegisterPage = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + '/';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-  };
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      try {
+        await loginWithGoogle(tokenResponse.access_token);
+        toast.success(lang === "sw" ? "Umeingia kikamilifu!" : "Signed in with Google!");
+        navigate("/");
+      } catch (err) {
+        toast.error(err.response?.data?.detail || (lang === "sw" ? "Imeshindikana kuingia" : "Google sign-in failed"));
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => toast.error(lang === "sw" ? "Google login imeshindikana" : "Google sign-in failed"),
+  });
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] flex items-center justify-center px-4 py-12">
@@ -197,8 +219,9 @@ export const RegisterPage = () => {
         <div className="bg-white rounded-2xl p-8 shadow-sm border border-[#1A1A1A]/10">
           {/* Google Login */}
           <button
-            onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#1A1A1A]/20 rounded-lg font-medium hover:bg-[#FAFAF7] transition-all mb-6"
+            onClick={() => googleLogin()}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#1A1A1A]/20 rounded-lg font-medium hover:bg-[#FAFAF7] transition-all mb-6 disabled:opacity-50"
             data-testid="google-register-btn"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">

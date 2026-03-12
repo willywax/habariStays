@@ -5,6 +5,8 @@ substitutions:
   _REGION: 'us-central1'
   _BACKEND_SERVICE: 'habari-stays-api'
   _FRONTEND_SERVICE: 'habari-stays-web'
+  _GOOGLE_CLIENT_ID: '883901859223-m866hedfbdshplud3ffd9vdjtccn3ice.apps.googleusercontent.com'
+  _SECRET_KEY: 'habari-stays-secret-key-change-in-production'
 
 steps:
   # Build Backend Image
@@ -12,47 +14,35 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA'
-      - '-t'
       - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest'
       - './backend'
     id: 'build-backend'
 
-  # Build Frontend Image  
+  # Build Frontend Image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
-      - '-t'
       - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest'
       - '--build-arg'
       - 'REACT_APP_BACKEND_URL=https://api.habaristays.com'
+      - '--build-arg'
+      - 'REACT_APP_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}'
       - './frontend'
     id: 'build-frontend'
     waitFor: ['-']  # Run in parallel with backend build
 
   # Push Backend Image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest']
     id: 'push-backend'
     waitFor: ['build-backend']
 
-  # Push Backend Latest
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest']
-    waitFor: ['push-backend']
-
   # Push Frontend Image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest']
     id: 'push-frontend'
     waitFor: ['build-frontend']
-
-  # Push Frontend Latest
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest']
-    waitFor: ['push-frontend']
 
   # Deploy Backend to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -62,7 +52,7 @@ steps:
       - 'deploy'
       - '${_BACKEND_SERVICE}'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest'
       - '--region'
       - '${_REGION}'
       - '--platform'
@@ -76,8 +66,8 @@ steps:
       - '0'
       - '--max-instances'
       - '10'
-      - '--set-env-vars'
-      - 'MONGO_URL=${_MONGO_URL},DB_NAME=${_DB_NAME},SECRET_KEY=${_SECRET_KEY},CORS_ORIGINS=https://habaristays.com'
+      - '--update-env-vars'
+      - 'SECRET_KEY=${_SECRET_KEY},CORS_ORIGINS=https://habaristays.com'
     id: 'deploy-backend'
     waitFor: ['push-backend']
 
@@ -89,7 +79,7 @@ steps:
       - 'deploy'
       - '${_FRONTEND_SERVICE}'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest'
       - '--region'
       - '${_REGION}'
       - '--platform'
@@ -107,9 +97,7 @@ steps:
     waitFor: ['push-frontend', 'deploy-backend']
 
 images:
-  - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA'
   - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest'
-  - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
   - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest'
 
 options:

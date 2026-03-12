@@ -6,6 +6,8 @@ steps:
       - 'gcr.io/$PROJECT_ID/habari-stays-web'
       - '--build-arg'
       - 'REACT_APP_BACKEND_URL=${_BACKEND_URL}'
+      - '--build-arg'
+      - 'REACT_APP_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}'
       - '.'
 
 images:
@@ -13,3 +15,4 @@ images:
 
 substitutions:
   _BACKEND_URL: 'https://api.habaristays.com'
+  _GOOGLE_CLIENT_ID: '883901859223-m866hedfbdshplud3ffd9vdjtccn3ice.apps.googleusercontent.com'
