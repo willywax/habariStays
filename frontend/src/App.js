@@ -1005,7 +1005,7 @@ const HotelCard = ({ hotel, onSaveScroll }) => {
 // ================== SEARCH PAGE ==================
 const SearchPage = () => {
   const { t, lang } = useLang();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [hotels, setHotels] = useState([]);
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1025,6 +1025,7 @@ const SearchPage = () => {
   useEffect(() => {
     fetchHotels();
     sessionStorage.setItem("hs_search_state", JSON.stringify(filters));
+    setSearchParams(filters.city ? { city: filters.city } : {}, { replace: true });
   }, [filters]);
 
   useEffect(() => {
@@ -1080,11 +1081,40 @@ const SearchPage = () => {
                   </div>
                   <div>
                     <label className="block text-sm text-[#1A1A1A]/60 mb-2">{t("filterByPrice")}</label>
-                    <div className="flex gap-2">
-                      <input type="number" value={filters.minPrice} onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
-                        placeholder="Min" className="w-full px-3 py-2 rounded-lg border border-[#1A1A1A]/10 focus:outline-none focus:ring-2 focus:ring-[#E07B2A]" />
-                      <input type="number" value={filters.maxPrice} onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
-                        placeholder="Max" className="w-full px-3 py-2 rounded-lg border border-[#1A1A1A]/10 focus:outline-none focus:ring-2 focus:ring-[#E07B2A]" />
+                    <div className="space-y-2">
+                      <select
+                        value={filters.minPrice}
+                        onChange={(e) => {
+                          const newMin = e.target.value;
+                          setFilters({
+                            ...filters,
+                            minPrice: newMin,
+                            maxPrice: newMin === "100001" ? "" : (filters.maxPrice && Number(filters.maxPrice) <= Number(newMin) ? "" : filters.maxPrice)
+                          });
+                        }}
+                        className="w-full px-3 py-2 rounded-lg border border-[#1A1A1A]/10 focus:outline-none focus:ring-2 focus:ring-[#E07B2A] text-sm"
+                      >
+                        <option value="">{lang === "sw" ? "Bei yoyote (chini)" : "Any min price"}</option>
+                        {[20000,30000,40000,50000,60000,70000,80000,90000,100000].map(p => (
+                          <option key={p} value={p}>TZS {p.toLocaleString()}</option>
+                        ))}
+                        <option value="100001">{lang === "sw" ? "Zaidi ya 100,000" : "Over 100,000"}</option>
+                      </select>
+                      {filters.minPrice !== "100001" && (
+                        <select
+                          value={filters.maxPrice}
+                          onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-[#1A1A1A]/10 focus:outline-none focus:ring-2 focus:ring-[#E07B2A] text-sm"
+                        >
+                          <option value="">{lang === "sw" ? "Bei yoyote (juu)" : "Any max price"}</option>
+                          {[20000,30000,40000,50000,60000,70000,80000,90000,100000]
+                            .filter(p => !filters.minPrice || p > Number(filters.minPrice))
+                            .map(p => (
+                              <option key={p} value={p}>TZS {p.toLocaleString()}</option>
+                            ))
+                          }
+                        </select>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -1159,6 +1189,33 @@ const HotelDetailPage = () => {
   const isVerified = hotel.status === "verified" || hotel.status === "owner_attached";
 
   const handleContactClick = () => { if (!user) { setShowLoginModal(true); } };
+
+  const handleGetDirections = () => {
+    const destination = encodeURIComponent(`${hotel.name}, ${hotel.city}, Tanzania`);
+    const mapsUrl = hotel.google_maps_url
+      ? hotel.google_maps_url
+      : `https://www.google.com/maps/search/?api=1&query=${destination}`;
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          window.open(
+            `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destination}`,
+            "_blank"
+          );
+        },
+        () => {
+          window.open(
+            `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
+            "_blank"
+          );
+        }
+      );
+    } else {
+      window.open(mapsUrl, "_blank");
+    }
+  };
 
   const coverImage = getCoverUrl(hotel.photos, "web") || hotel.cover_photo || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920";
   const minPrice = rooms.length > 0 ? Math.min(...rooms.map(r => r.price_per_night)) : null;
@@ -1494,26 +1551,29 @@ const HotelDetailPage = () => {
 
             <div className="bg-white rounded-xl border border-[#1A1A1A]/10 p-6 sticky top-24">
               <h3 className="font-semibold text-[#1A1A1A] mb-4">{lang === "sw" ? "Mahali" : "Location"}</h3>
-              <div className="h-64 bg-[#FAFAF7] rounded-lg flex items-center justify-center text-[#1A1A1A]/40">
-                <div className="text-center">
-                  <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <p>{hotel.address}</p>
-                  <p className="font-medium">{hotel.city}</p>
+              <div className="bg-[#FAFAF7] rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 bg-[#E07B2A]/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-5 h-5 text-[#E07B2A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    {hotel.address && <p className="text-[#1A1A1A] text-sm">{hotel.address}</p>}
+                    <p className="font-semibold text-[#1A1A1A]">{hotel.city}, Tanzania</p>
+                  </div>
                 </div>
               </div>
-              {hotel.google_maps_url && (
-                <a
-                  href={hotel.google_maps_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-center text-[#E07B2A] font-medium mt-4 hover:underline"
-                >
-                  {lang === "sw" ? "Fungua kwenye Google Maps" : "Open in Google Maps"}
-                </a>
-              )}
+              <button
+                onClick={handleGetDirections}
+                className="w-full flex items-center justify-center gap-2 bg-[#E07B2A] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#C96A1F] transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                {lang === "sw" ? "Pata Maelekezo" : "Get Directions"}
+              </button>
             </div>
           </div>
         </div>

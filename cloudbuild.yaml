@@ -7,6 +7,9 @@ substitutions:
   _FRONTEND_SERVICE: 'habari-stays-web'
   _GOOGLE_CLIENT_ID: '883901859223-m866hedfbdshplud3ffd9vdjtccn3ice.apps.googleusercontent.com'
   _SECRET_KEY: 'habari-stays-secret-key-change-in-production'
+  _BEEM_API_KEY: 'edb1c303e756f90f'
+  _BEEM_SECRET_KEY: 'NTVlZDRkZWU4NGU2NWY2ODQwNzc0MGYxOTUwZDkwMGYyYzRhOWQ5ZjdjODRjYjg5MDU0YzRlMTI3YWFmMzVmMQ=='
+  _BEEM_SENDER_ID: 'HABARISTAYS'
 
 steps:
   # Build Backend Image
@@ -67,7 +70,7 @@ steps:
       - '--max-instances'
       - '10'
       - '--update-env-vars'
-      - 'SECRET_KEY=${_SECRET_KEY},CORS_ORIGINS=https://habaristays.com'
+      - 'SECRET_KEY=${_SECRET_KEY},CORS_ORIGINS=https://habaristays.com,BEEM_API_KEY=${_BEEM_API_KEY},BEEM_SECRET_KEY=${_BEEM_SECRET_KEY},BEEM_SENDER_ID=${_BEEM_SENDER_ID}'
     id: 'deploy-backend'
     waitFor: ['push-backend']
 

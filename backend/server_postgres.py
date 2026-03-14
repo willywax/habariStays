@@ -3181,6 +3181,23 @@ async def get_payment_config():
 
 # ===================== HEALTH CHECK =====================
 
+class TestSmsRequest(BaseModel):
+    phone: str
+    message: str = "Test SMS from Habari Stays"
+
+@api_router.post("/test-sms")
+async def test_sms(data: TestSmsRequest, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    sms_sent = await send_sms(data.phone, data.message)
+    beem_configured = bool(BEEM_API_KEY and BEEM_SECRET_KEY)
+    return {
+        "success": sms_sent,
+        "beem_configured": beem_configured,
+        "phone": data.phone,
+        "mode": "live" if beem_configured else "mock (BEEM credentials not set)",
+    }
+
 @api_router.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "Habari Stays API", "version": "2.1.0", "database": "PostgreSQL"}
