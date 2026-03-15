@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link,
 import axios from "axios";
 import { Toaster, toast } from "sonner";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { HelmetProvider, Helmet } from "react-helmet-async";
 import { getPhotoUrl, getCoverUrl } from "./components/PhotoManager";
 import "@/App.css";
 
@@ -664,14 +663,12 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
-      <Helmet>
-        <title>Book Hotels in Tanzania | Habari Stays</title>
-        <meta name="description" content="Find and book the best hotels across Tanzania. Compare prices, read reviews and book instantly. Hotels in Dar es Salaam, Arusha, Zanzibar, Moshi and more." />
-        <link rel="canonical" href="https://habaristays.com/" />
-        <meta property="og:title" content="Book Hotels in Tanzania | Habari Stays" />
-        <meta property="og:description" content="Find and book the best hotels across Tanzania. Compare prices, read reviews and book instantly." />
-        <meta property="og:url" content="https://habaristays.com/" />
-      </Helmet>
+      <title>Book Hotels in Tanzania | Habari Stays</title>
+      <meta name="description" content="Find and book the best hotels across Tanzania. Compare prices, read reviews and book instantly. Hotels in Dar es Salaam, Arusha, Zanzibar, Moshi and more." />
+      <link rel="canonical" href="https://habaristays.com/" />
+      <meta property="og:title" content="Book Hotels in Tanzania | Habari Stays" />
+      <meta property="og:description" content="Find and book the best hotels across Tanzania. Compare prices, read reviews and book instantly." />
+      <meta property="og:url" content="https://habaristays.com/" />
       <Navbar transparent />
 
       {/* Hero */}
@@ -1022,8 +1019,11 @@ const SearchPage = () => {
 
   useEffect(() => { api.get("/hotels/cities").then(r => setCities(r.data.filter(c => c.city !== "Zanzibar"))).catch(() => {}); }, []);
 
+  // Initial fetch on mount only
+  useEffect(() => { fetchHotels(); }, []);
+
+  // Sync URL + session state on every filter change (no fetch)
   useEffect(() => {
-    fetchHotels();
     sessionStorage.setItem("hs_search_state", JSON.stringify(filters));
     setSearchParams(filters.city ? { city: filters.city } : {}, { replace: true });
   }, [filters]);
@@ -1052,11 +1052,9 @@ const SearchPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
-      <Helmet>
-        <title>{filters.city ? `Hotels in ${filters.city}, Tanzania` : "Hotels in Tanzania"} | Habari Stays</title>
-        <meta name="description" content={filters.city ? `Find and book hotels in ${filters.city}, Tanzania. ${hotels.length} hotels available. Best prices guaranteed on Habari Stays.` : `Browse ${hotels.length} hotels across Tanzania. Compare prices, read reviews and book instantly.`} />
-        <link rel="canonical" href={`https://habaristays.com/search${filters.city ? `?city=${encodeURIComponent(filters.city)}` : ''}`} />
-      </Helmet>
+      <title>{filters.city ? `Hotels in ${filters.city}, Tanzania | Habari Stays` : "Hotels in Tanzania | Habari Stays"}</title>
+      <meta name="description" content={filters.city ? `Find and book hotels in ${filters.city}, Tanzania. ${hotels.length} hotels available. Best prices guaranteed on Habari Stays.` : `Browse ${hotels.length} hotels across Tanzania. Compare prices, read reviews and book instantly.`} />
+      <link rel="canonical" href={`https://habaristays.com/search${filters.city ? `?city=${encodeURIComponent(filters.city)}` : ''}`} />
       <Navbar />
       <div className="pt-24 pb-16 px-4">
         <div className="max-w-7xl mx-auto">
@@ -1126,6 +1124,19 @@ const SearchPage = () => {
                       <option value="price_high">{t("priceHighLow")}</option>
                     </select>
                   </div>
+                  <button
+                    onClick={fetchHotels}
+                    disabled={loading}
+                    className="w-full py-3 bg-[#E07B2A] text-white font-semibold rounded-lg hover:bg-[#C96A1F] transition-all disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+                    data-testid="search-btn"
+                  >
+                    {loading ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/></svg>
+                    )}
+                    {lang === "sw" ? "Tafuta" : "Search"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1240,17 +1251,15 @@ const HotelDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
-      <Helmet>
-        <title>{hotel.name} – Hotel in {hotel.city}, Tanzania | Habari Stays</title>
-        <meta name="description" content={metaDescription} />
-        <link rel="canonical" href={`https://habaristays.com/hotel/${hotel.id}`} />
-        <meta property="og:type" content="place" />
-        <meta property="og:title" content={`${hotel.name} | ${hotel.city} Hotel | Habari Stays`} />
-        <meta property="og:description" content={metaDescription} />
-        <meta property="og:image" content={coverImage} />
-        <meta property="og:url" content={`https://habaristays.com/hotel/${hotel.id}`} />
-        <script type="application/ld+json">{JSON.stringify(hotelSchema)}</script>
-      </Helmet>
+      <title>{`${hotel.name} – Hotel in ${hotel.city}, Tanzania | Habari Stays`}</title>
+      <meta name="description" content={metaDescription} />
+      <link rel="canonical" href={`https://habaristays.com/hotel/${hotel.id}`} />
+      <meta property="og:type" content="place" />
+      <meta property="og:title" content={`${hotel.name} | ${hotel.city} Hotel | Habari Stays`} />
+      <meta property="og:description" content={metaDescription} />
+      <meta property="og:image" content={coverImage} />
+      <meta property="og:url" content={`https://habaristays.com/hotel/${hotel.id}`} />
+      <script type="application/ld+json">{JSON.stringify(hotelSchema)}</script>
       <Navbar />
 
       {/* Hero */}
@@ -1680,18 +1689,16 @@ function AppRouter() {
 // ================== APP ==================
 function App() {
   return (
-    <HelmetProvider>
-      <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ""}>
-        <LanguageProvider>
-          <AuthProvider>
-            <Toaster position="top-right" richColors />
-            <BrowserRouter>
-              <AppRouter />
-            </BrowserRouter>
-          </AuthProvider>
-        </LanguageProvider>
-      </GoogleOAuthProvider>
-    </HelmetProvider>
+    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ""}>
+      <LanguageProvider>
+        <AuthProvider>
+          <Toaster position="top-right" richColors />
+          <BrowserRouter>
+            <AppRouter />
+          </BrowserRouter>
+        </AuthProvider>
+      </LanguageProvider>
+    </GoogleOAuthProvider>
   );
 }
 

@@ -40,8 +40,13 @@ const HotelEditPage = ({ basePath = "/admin" }) => {
 
   const isAdmin = user?.role === "admin";
   const isOwner = user?.role === "owner";
+  const isNewHotel = hotelId === "new";
 
   const fetchHotel = async () => {
+    if (isNewHotel) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await api.get(`/hotels/${hotelId}/full`);
       setHotel(res.data);
@@ -54,6 +59,12 @@ const HotelEditPage = ({ basePath = "/admin" }) => {
   useEffect(() => { fetchHotel(); }, [hotelId]);
 
   if (loading) return <LoadingSpinner />;
+  
+  // Show create form for new hotels
+  if (isNewHotel) {
+    return <HotelCreateForm basePath={basePath} />;
+  }
+  
   if (!hotel) return <div className="text-center py-12 text-[#A1A1AA]">Hotel haipatikani</div>;
 
   return (
@@ -487,6 +498,126 @@ const DeleteRoomModal = ({ room, onClose, onDeleted }) => {
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ── Hotel Create Form ──
+const HotelCreateForm = ({ basePath }) => {
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    address: "",
+    city: "",
+    phone_number: "",
+    whatsapp_number: "",
+    website: "",
+    google_maps_url: "",
+    status: "verified",
+  });
+
+  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error("Jina la hotel linahitajika");
+      return;
+    }
+    if (!form.city) {
+      toast.error("Chagua mji");
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const res = await api.post("/admin/hotels", form);
+      toast.success("Hotel imeundwa!");
+      navigate(`${basePath}/hotels/${res.data.id}`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Imeshindikana kuunda hotel");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <button onClick={() => navigate(`${basePath}/hotels`)} className="p-2 hover:bg-[#F4F4F5] rounded-lg">
+          <ChevronLeft className="w-5 h-5 text-[#52525B]" />
+        </button>
+        <h1 className="font-['Outfit'] text-2xl font-bold text-[#18181B]">Unda Hotel Mpya</h1>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-border p-6 space-y-4 max-w-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-[#52525B] mb-1">Jina la Hotel *</label>
+            <input type="text" value={form.name} onChange={e => handleChange("name", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              placeholder="Kwa mfano: Grand Hotel" data-testid="create-hotel-name" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#52525B] mb-1">Mji *</label>
+            <select value={form.city} onChange={e => handleChange("city", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              data-testid="create-hotel-city">
+              <option value="">Chagua mji...</option>
+              {TZ_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-[#52525B] mb-1">Anwani</label>
+            <input type="text" value={form.address} onChange={e => handleChange("address", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              placeholder="Kwa mfano: Karibu na Shoppers Plaza" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#52525B] mb-1">Simu</label>
+            <input type="text" value={form.phone_number} onChange={e => handleChange("phone_number", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              placeholder="+255 xxx xxx xxx" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#52525B] mb-1">WhatsApp</label>
+            <input type="text" value={form.whatsapp_number} onChange={e => handleChange("whatsapp_number", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              placeholder="+255 xxx xxx xxx" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#52525B] mb-1">Website</label>
+            <input type="text" value={form.website} onChange={e => handleChange("website", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              placeholder="https://..." />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#52525B] mb-1">Google Maps URL</label>
+            <input type="text" value={form.google_maps_url} onChange={e => handleChange("google_maps_url", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              placeholder="https://maps.google.com/..." />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-[#52525B] mb-1">Maelezo</label>
+            <textarea value={form.description} onChange={e => handleChange("description", e.target.value)} rows={3}
+              className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+              placeholder="Maelezo mafupi ya hotel..." />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <button type="button" onClick={() => navigate(`${basePath}/hotels`)}
+            className="px-4 py-2 border border-border rounded-lg font-medium hover:bg-[#F4F4F5]">
+            Ghairi
+          </button>
+          <button type="submit" disabled={saving}
+            className="flex items-center gap-2 bg-[#1B4332] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#143D28] disabled:opacity-50"
+            data-testid="submit-create-hotel">
+            <Save className="w-4 h-4" />
+            {saving ? "Inaunda..." : "Unda Hotel"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
