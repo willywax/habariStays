@@ -30,6 +30,8 @@ next-env.d.ts
 dist/
 dist
 
+tmpclaude*
+
 # Environment files (comprehensive coverage)
 
 *token.json*
