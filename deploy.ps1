@@ -85,16 +85,12 @@ function Deploy-Backend {
 function Deploy-Frontend {
     Write-Info "Deploying frontend..."
     
-    # Use custom API domain
-    $backendUrl = "https://api.habaristays.com"
-    
     Push-Location frontend
     
     try {
-        # Build with API URL
+        # Build using cloudbuild.yaml with substitutions
         gcloud builds submit `
-            --tag "gcr.io/$script:ProjectId/$FrontendService" `
-            --build-arg "REACT_APP_BACKEND_URL=$backendUrl" `
+            --config cloudbuild.yaml `
             --quiet
         
         # Deploy

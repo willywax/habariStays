@@ -3408,6 +3408,116 @@ async def get_all_hotels_admin(
     
     return result
 
+@api_router.get("/admin/users")
+async def get_admin_users(
+    role: Optional[str] = None,
+    search: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin tu")
+
+    query = {}
+    if role and role != "all":
+        query["role"] = role
+
+    if search:
+        regex = {"$regex": search, "$options": "i"}
+        query["$or"] = [
+            {"full_name": regex},
+            {"email": regex},
+            {"phone": regex}
+        ]
+
+    users = await db.users.find(query, {"_id": 0, "password_hash": 0}).to_list(500)
+    hotel_ids = [u.get("assigned_hotel_id") for u in users if u.get("assigned_hotel_id")]
+    hotels = {}
+    if hotel_ids:
+        hotel_docs = await db.hotels.find({"id": {"$in": hotel_ids}}, {"_id": 0, "name": 1}).to_list(100)
+        hotels = {h["id"]: h["name"] for h in hotel_docs}
+
+    for user in users:
+        user["assigned_hotel_name"] = hotels.get(user.get("assigned_hotel_id"))
+
+    return users
+
+@api_router.post("/admin/users")
+async def create_admin_user(request: Request, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin tu")
+
+    body = await request.json()
+    email = body.get("email", "").strip().lower()
+    full_name = body.get("full_name", "").strip()
+    phone = body.get("phone", "").strip()
+    role = body.get("role", "traveler")
+    assigned_hotel_id = body.get("assigned_hotel_id")
+
+    if not email or not full_name or not phone:
+        raise HTTPException(status_code=400, detail="Jina, email na simu zinahitajika")
+
+    if role not in ["traveler", "owner", "cashier", "admin"]:
+        raise HTTPException(status_code=400, detail="Role sio sahihi")
+
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email tayari imetumika")
+
+    temp_password = generate_temp_password()
+    user_id = str(uuid.uuid4())
+    user = {
+        "id": user_id,
+        "email": email,
+        "full_name": full_name,
+        "phone": format_phone(phone),
+        "role": role,
+        "assigned_hotel_id": assigned_hotel_id,
+        "password_hash": get_password_hash(temp_password),
+        "is_active": True,
+        "is_verified": True,
+        "picture": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "last_login": None
+    }
+    await db.users.insert_one(user)
+
+    if phone:
+        sms_msg = f"Habari {full_name}! Akaunti yako ya Habari Stays imeundwa kama {role}. Ingia kwa email {email} na neno la siri: {temp_password}"
+        background_tasks.add_task(send_sms, phone, sms_msg)
+
+    user.pop("password_hash", None)
+    return {"user": user, "temp_password": temp_password}
+
+@api_router.patch("/admin/users/{user_id}")
+async def update_admin_user(user_id: str, request: Request, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin tu")
+
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User hapatikani")
+
+    body = await request.json()
+    allowed = ["full_name", "phone", "role", "assigned_hotel_id", "is_active", "is_verified"]
+    update = {k: v for k, v in body.items() if k in allowed}
+
+    if "role" in update and update["role"] not in ["traveler", "owner", "cashier", "admin"]:
+        raise HTTPException(status_code=400, detail="Role sio sahihi")
+
+    if "phone" in update:
+        update["phone"] = format_phone(update["phone"])
+
+    if not update:
+        raise HTTPException(status_code=400, detail="Hakuna mabadiliko")
+
+    await db.users.update_one({"id": user_id}, {"$set": update})
+    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    updated["assigned_hotel_name"] = None
+    if updated.get("assigned_hotel_id"):
+        hotel = await db.hotels.find_one({"id": updated["assigned_hotel_id"]}, {"_id": 0, "name": 1})
+        updated["assigned_hotel_name"] = hotel.get("name") if hotel else None
+    return updated
+
 @api_router.put("/admin/users/{user_id}/reject")
 async def reject_owner(user_id: str, current_user: dict = Depends(get_current_user)):
     """Reject a pending owner application"""

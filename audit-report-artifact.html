@@ -1,0 +1,681 @@
+<title>Habari Stays Audit</title>
+<style>
+  :root{
+    --bg:#FAFAF7;
+    --surface:#FFFFFF;
+    --surface-2:#F1EFE7;
+    --text:#1A1A1A;
+    --text-muted:#65625A;
+    --text-faint:#8A867B;
+    --border:#E3E0D6;
+    --border-strong:#D2CDBF;
+    --brand-orange:#C96A1F;
+    --brand-orange-bg:#FBEADD;
+    --brand-green:#1B4332;
+    --brand-green-ink:#0F2B21;
+    --link:#0F4C5C;
+    --sev-critical:#A3241C;
+    --sev-critical-bg:#FBE6E3;
+    --sev-high:#B4620F;
+    --sev-high-bg:#FCEEDD;
+    --sev-medium:#2E5F8A;
+    --sev-medium-bg:#E7EFF6;
+    --sev-low:#5B5F63;
+    --sev-low-bg:#ECEDEE;
+    --good:#2F6F4E;
+    --good-bg:#E6F1EA;
+    --code-bg:#F1EEE4;
+    --shadow: 0 1px 2px rgba(27,67,50,0.06), 0 8px 24px -12px rgba(27,67,50,0.15);
+    --font-display:"Outfit", "Segoe UI", sans-serif;
+    --font-body:"Inter", "Segoe UI", sans-serif;
+    --font-mono:"JetBrains Mono", "Consolas", monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181A;
+      --surface:#1B211F;
+      --surface-2:#212824;
+      --text:#EDEBE3;
+      --text-muted:#ABA79C;
+      --text-faint:#7D7A70;
+      --border:#323A34;
+      --border-strong:#3E4740;
+      --brand-orange:#E8934C;
+      --brand-orange-bg:#3A2A1B;
+      --brand-green:#5B9A80;
+      --brand-green-ink:#DDEAE3;
+      --link:#7FC3D6;
+      --sev-critical:#E8776C;
+      --sev-critical-bg:#3B211E;
+      --sev-high:#E3A55B;
+      --sev-high-bg:#3A2C18;
+      --sev-medium:#7FAAD1;
+      --sev-medium-bg:#1E2C38;
+      --sev-low:#A8ACB0;
+      --sev-low-bg:#272B2D;
+      --good:#7FBE9D;
+      --good-bg:#1C2E24;
+      --code-bg:#20251F;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181A;
+    --surface:#1B211F;
+    --surface-2:#212824;
+    --text:#EDEBE3;
+    --text-muted:#ABA79C;
+    --text-faint:#7D7A70;
+    --border:#323A34;
+    --border-strong:#3E4740;
+    --brand-orange:#E8934C;
+    --brand-orange-bg:#3A2A1B;
+    --brand-green:#5B9A80;
+    --brand-green-ink:#DDEAE3;
+    --link:#7FC3D6;
+    --sev-critical:#E8776C;
+    --sev-critical-bg:#3B211E;
+    --sev-high:#E3A55B;
+    --sev-high-bg:#3A2C18;
+    --sev-medium:#7FAAD1;
+    --sev-medium-bg:#1E2C38;
+    --sev-low:#A8ACB0;
+    --sev-low-bg:#272B2D;
+    --good:#7FBE9D;
+    --good-bg:#1C2E24;
+    --code-bg:#20251F;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    line-height:1.6;
+    font-size:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{
+    font-family:var(--font-display);
+    text-wrap:balance;
+    color:var(--text);
+    line-height:1.15;
+  }
+  a{color:var(--link);}
+  a:focus-visible, button:focus-visible, summary:focus-visible{outline:2px solid var(--link); outline-offset:2px;}
+  code, .mono{ font-family:var(--font-mono); }
+  ::selection{ background:var(--brand-orange-bg); color:var(--text); }
+
+  /* ===== Masthead ===== */
+  .masthead{
+    background: linear-gradient(155deg, var(--brand-green) 0%, var(--brand-green-ink) 100%);
+    color:#F4F1E8;
+    padding: 56px 32px 48px;
+  }
+  .masthead-inner{ max-width:1180px; margin:0 auto; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+    color:#CFE3D6; opacity:.85; margin-bottom:18px;
+  }
+  .eyebrow::before{ content:""; width:7px; height:7px; border-radius:50%; background:#E8934C; display:inline-block; }
+  .masthead h1{
+    font-size:clamp(32px,4.4vw,52px); font-weight:700; margin:0 0 14px; color:#FFFDF8; letter-spacing:-0.01em;
+  }
+  .masthead p.dek{
+    max-width:62ch; font-size:17px; color:#DCE8E0; margin:0 0 28px;
+  }
+  .meta-row{
+    display:flex; flex-wrap:wrap; gap:10px 28px;
+    font-size:13px; color:#C9DBD0; border-top:1px solid rgba(244,241,232,0.18); padding-top:20px;
+  }
+  .meta-row div{ display:flex; flex-direction:column; gap:3px; }
+  .meta-row span.label{ font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.07em; font-size:10.5px; color:#93B3A4; }
+  .meta-row span.val{ color:#F4F1E8; font-weight:500; }
+
+  .methodology{
+    max-width:1180px; margin:0 auto; padding: 22px 32px;
+  }
+  .methodology-box{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:18px 22px; font-size:13.5px; color:var(--text-muted); line-height:1.65;
+  }
+  .methodology-box strong{ color:var(--text); }
+
+  /* ===== Layout shell ===== */
+  .shell{
+    max-width:1180px; margin:0 auto; padding: 8px 32px 90px;
+    display:grid; grid-template-columns: 220px minmax(0,1fr); gap:48px;
+  }
+  nav.toc{
+    position:sticky; top:24px; align-self:start;
+    display:flex; flex-direction:column; gap:2px;
+    max-height:calc(100vh - 48px); overflow-y:auto; padding-bottom:20px;
+  }
+  nav.toc a{
+    text-decoration:none; color:var(--text-muted); font-size:13.5px; padding:7px 10px; border-radius:7px;
+    border-left:2px solid transparent; display:flex; gap:8px;
+  }
+  nav.toc a .n{ font-family:var(--font-mono); color:var(--text-faint); font-size:12px; min-width:16px; }
+  nav.toc a:hover{ background:var(--surface-2); color:var(--text); }
+  nav.toc .toc-group-label{
+    font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-faint); padding:16px 10px 4px;
+  }
+  nav.toc .toc-group-label:first-child{ padding-top:4px; }
+
+  main{ min-width:0; }
+
+  section.report-section{
+    padding: 46px 0 8px;
+    border-top:1px solid var(--border);
+  }
+  section.report-section:first-of-type{ border-top:none; padding-top:8px; }
+  .sec-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:6px; }
+  .sec-num{
+    font-family:var(--font-mono); font-size:14px; color:var(--brand-orange); font-weight:600;
+    background:var(--brand-orange-bg); padding:2px 9px; border-radius:6px; flex-shrink:0;
+  }
+  .sec-head h2{ font-size:26px; margin:0; font-weight:700; }
+  .sec-lede{ color:var(--text-muted); font-size:14px; margin: 2px 0 24px; max-width:70ch;}
+
+  main p{ max-width:74ch; margin: 0 0 16px; }
+  main ul, main ol{ max-width:74ch; margin: 0 0 16px; padding-left:22px; }
+  main li{ margin-bottom:6px; }
+  main h3{ font-size:17px; margin: 28px 0 10px; font-weight:600; }
+
+  .callout{
+    border:1px solid var(--border); border-left:4px solid var(--sev-low);
+    background:var(--surface); border-radius:0 10px 10px 0; padding:16px 20px; margin:18px 0;
+    max-width:74ch; box-shadow:var(--shadow);
+  }
+  .callout p:last-child{ margin-bottom:0; }
+  .callout.crit{ border-left-color:var(--sev-critical); }
+  .callout.high{ border-left-color:var(--sev-high); }
+  .callout.good{ border-left-color:var(--good); }
+  .callout-label{
+    font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    font-weight:700; margin-bottom:6px; display:block;
+  }
+  .callout.crit .callout-label{ color:var(--sev-critical); }
+  .callout.high .callout-label{ color:var(--sev-high); }
+  .callout.good .callout-label{ color:var(--good); }
+
+  .pill{
+    display:inline-flex; align-items:center; font-family:var(--font-mono); font-size:11px; font-weight:700;
+    padding:2px 9px; border-radius:100px; letter-spacing:.02em; white-space:nowrap;
+  }
+  .pill.crit{ background:var(--sev-critical-bg); color:var(--sev-critical); }
+  .pill.high{ background:var(--sev-high-bg); color:var(--sev-high); }
+  .pill.med{ background:var(--sev-medium-bg); color:var(--sev-medium); }
+  .pill.low{ background:var(--sev-low-bg); color:var(--sev-low); }
+  .pill.good{ background:var(--good-bg); color:var(--good); }
+
+  /* generic data table */
+  .table-wrap{ overflow-x:auto; margin: 14px 0 22px; border:1px solid var(--border); border-radius:10px; background:var(--surface); box-shadow:var(--shadow); }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:560px; }
+  thead th{
+    text-align:left; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--text-faint); font-weight:600; padding:11px 16px; border-bottom:1px solid var(--border-strong);
+    background:var(--surface-2); white-space:nowrap;
+  }
+  tbody td{ padding:11px 16px; border-bottom:1px solid var(--border); vertical-align:top; color:var(--text); }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--surface-2); }
+  td.num, th.num{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .priority-table td:first-child{ white-space:nowrap; }
+
+  .stat-row{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:1px;
+    background:var(--border); border:1px solid var(--border); border-radius:10px; overflow:hidden;
+    margin: 10px 0 26px; box-shadow:var(--shadow);
+  }
+  .stat-tile{ background:var(--surface); padding:18px 16px; }
+  .stat-tile .stat-num{ font-family:var(--font-mono); font-size:28px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1; }
+  .stat-tile .stat-label{ font-size:11.5px; color:var(--text-muted); margin-top:6px; line-height:1.35; }
+  .stat-tile.warn .stat-num{ color:var(--sev-high); }
+  .stat-tile.crit .stat-num{ color:var(--sev-critical); }
+  .stat-tile.ok .stat-num{ color:var(--good); }
+
+  .kv-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:14px 0 22px; }
+  .kv-card{ background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:13px 15px; }
+  .kv-card .k{ font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); margin-bottom:5px; }
+  .kv-card .v{ font-size:14px; color:var(--text); }
+
+  .cite{ font-family:var(--font-mono); font-size:12.5px; background:var(--code-bg); padding:1px 6px; border-radius:4px; color:var(--text-muted); }
+
+  .findings-summary{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:20px 0;
+    box-shadow:var(--shadow);
+  }
+  .findings-summary h4{ font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); margin:0 0 12px; font-weight:600; }
+  .findings-summary ol{ margin:0; padding-left:20px; }
+  .findings-summary li{ margin-bottom:8px; font-size:14px; }
+  .findings-summary li:last-child{ margin-bottom:0; }
+
+  footer.report-footer{
+    max-width:1180px; margin:0 auto; padding: 30px 32px 60px;
+    color:var(--text-faint); font-size:12.5px; border-top:1px solid var(--border); margin-top:20px;
+  }
+
+  @media (max-width: 880px){
+    .shell{ grid-template-columns: 1fr; }
+    nav.toc{ position:static; max-height:none; flex-direction:row; flex-wrap:wrap; gap:6px; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:8px;}
+    nav.toc a{ border-left:none; border:1px solid var(--border); font-size:12.5px; }
+    nav.toc .toc-group-label{ display:none; }
+    .masthead{ padding:40px 20px 34px; }
+    .methodology{ padding:18px 20px; }
+    .shell{ padding:8px 20px 70px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <span class="eyebrow">Technical &amp; UX Audit</span>
+    <h1>Habari Stays</h1>
+    <p class="dek">A source-code and live-site audit of Tanzania's hotel booking platform — stack, SEO, guest/owner/admin flows, data quality, mobile UX, performance, and security — compiled to plan the next development phase.</p>
+    <div class="meta-row">
+      <div><span class="label">Date</span><span class="val">September 11, 2026</span></div>
+      <div><span class="label">Audited by</span><span class="val">Claude Code</span></div>
+      <div><span class="label">Live hotels found</span><span class="val">30</span></div>
+      <div><span class="label">Critical security findings</span><span class="val">3</span></div>
+      <div><span class="label">API p50 latency</span><span class="val">~15.8s</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="methodology">
+  <div class="methodology-box">
+    <strong>Methodology.</strong> This audit combines direct source-code review of the deployed codebase — more reliable than black-box browsing for stack, data-model, and security questions — with live checks against <span class="cite">habaristays.com</span> and <span class="cite">api.habaristays.com</span> (raw HTTP/curl, robots.txt, sitemap.xml, live API responses). No browser-automation tool was available, so items requiring interactive UI testing are marked <strong>inferred from code</strong> rather than <strong>verified live</strong> — backed by exact file:line citations, never guesses, but not click-tested in a live browser.
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="toc" aria-label="Table of contents">
+    <span class="toc-group-label">Report</span>
+    <a href="#exec"><span class="n">—</span>Executive Summary</a>
+    <span class="toc-group-label">Audit areas</span>
+    <a href="#s1"><span class="n">01</span>Technical Stack</a>
+    <a href="#s2"><span class="n">02</span>SEO Audit</a>
+    <a href="#s3"><span class="n">03</span>Guest Flow</a>
+    <a href="#s4"><span class="n">04</span>Owner Flow</a>
+    <a href="#s5"><span class="n">05</span>Admin Panel</a>
+    <a href="#s6"><span class="n">06</span>Data Quality</a>
+    <a href="#s7"><span class="n">07</span>Mobile UX</a>
+    <a href="#s8"><span class="n">08</span>Performance</a>
+    <a href="#s9"><span class="n">09</span>Security</a>
+    <a href="#s10"><span class="n">10</span>Competitive Gaps</a>
+    <span class="toc-group-label">Wrap-up</span>
+    <a href="#fixlist"><span class="n">—</span>Priority Fix List</a>
+    <a href="#working"><span class="n">—</span>What's Working</a>
+    <a href="#next"><span class="n">—</span>Next Steps</a>
+  </nav>
+
+  <main>
+
+    <section class="report-section" id="exec">
+      <div class="sec-head"><h2>Executive Summary</h2></div>
+      <p>Habari Stays is a React (Create React App) single-page app backed by a FastAPI/PostgreSQL API on Google Cloud, currently live with real production infrastructure but very thin real content: <strong>30 live hotel listings, 100% in "imported" (unverified, Google-Places-scraped) status</strong>, concentrated in just Musoma and Arusha — despite the homepage, footer, and sitemap advertising Dar es Salaam, Zanzibar, Dodoma, and Moshi, where zero hotels currently exist. No hotel has real coordinates, almost none have a real description, and pricing is a uniform placeholder (mostly a flat 50,000 TZS) rather than researched per-hotel pricing.</p>
+      <p>Code review surfaced several <strong>security issues that need immediate attention</strong>: public registration accepts a client-supplied <span class="cite">role</span> field with no server-side restriction, a payment-confirmation endpoint has no authentication at all, and several hotel/room-editing endpoints have a broken authorization check letting any logged-in traveler edit another hotel's rooms. The live site also has a severe performance problem — the API consistently takes 13–20 seconds to respond — and the admin dashboard's source file currently has an uncommitted syntax error that would break the build if deployed as-is.</p>
+      <p>On the positive side, the core architecture is sound, the cashier dashboard is genuinely well-built and mobile-responsive, and the owner revenue/booking analytics are more sophisticated than most early-stage hotel platforms.</p>
+    </section>
+
+    <section class="report-section" id="s1">
+      <div class="sec-head"><span class="sec-num">01</span><h2>Technical Stack</h2></div>
+      <p class="sec-lede">Verified live + code review</p>
+
+      <div class="table-wrap"><table>
+        <thead><tr><th>Layer</th><th>Finding</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend</td><td>React 18 via <span class="cite">create-react-app + craco</span> — not Next.js/Remix. Confirmed by <span class="cite">frontend/craco.config.js</span>, build output shape, and CRA-style Nginx SPA fallback.</td></tr>
+          <tr><td>Rendering</td><td><strong>Pure client-side rendering.</strong> No SSR/SSG. <span class="cite">curl /hotel/{id}</span> returns the identical static shell as <span class="cite">/</span> — no hotel name in raw HTML. <span class="cite">/admin</span>, <span class="cite">/search?city=Dodoma</span>, and <span class="cite">/</span> all return the same 5,910-byte <span class="cite">index.html</span>.</td></tr>
+          <tr><td>Routing / state</td><td>React Router v6, Context API for auth/language (no Redux)</td></tr>
+          <tr><td>Backend</td><td>FastAPI, confirmed via Swagger UI at <span class="cite">api.habaristays.com/docs</span></td></tr>
+          <tr><td>Hosting</td><td>Google Cloud — Nginx-served frontend container, Cloud Build/Run per <span class="cite">Dockerfile</span>, <span class="cite">cloudbuild.yaml</span>, <span class="cite">deploy.ps1</span></td></tr>
+          <tr><td>API style</td><td>REST / JSON. No GraphQL.</td></tr>
+          <tr><td>Database</td><td>PostgreSQL — see critical finding below</td></tr>
+          <tr><td>Images</td><td>Cloudinary (cloud <span class="cite">diupey6vs</span>, unsigned preset)</td></tr>
+          <tr><td>SMS</td><td>Beem Africa (real, sender <span class="cite">HABARISTAYS</span>/<span class="cite">PLUTO</span>)</td></tr>
+          <tr><td>Payments</td><td>No real gateway. "Mock M-Pesa" — manual till number, self-reported reference, no STK-push/webhook.</td></tr>
+          <tr><td>Analytics</td><td>PostHog, client-side key embedded (expected/normal)</td></tr>
+          <tr><td>robots.txt / sitemap.xml</td><td>Both present; sitemap lists 10 URLs across 6 cities</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="callout crit">
+        <span class="callout-label">Critical — two parallel backends</span>
+        <p>The repo contains <strong>two non-identical backend implementations</strong>. <span class="cite">backend/server.py</span> (MongoDB via motor) matches the original PRD but is dead code — <span class="cite">backend/Dockerfile:24</span> actually runs <span class="cite">uvicorn server_postgres:app</span>. The deployed backend is <span class="cite">server_postgres.py</span> on PostgreSQL, a fact the project's own PRD doesn't reflect. Both <span class="cite">MONGO_URL</span> and <span class="cite">DATABASE_URL</span> env vars exist side by side — an incomplete migration where the old file was never deleted. Risk: someone edits the wrong file, or the stale Mongo server gets redeployed by mistake.</p>
+      </div>
+
+      <div class="kv-grid">
+        <div class="kv-card"><div class="k">Homepage TTFB (3 runs)</div><div class="v mono">1.19s / 7.47s / 2.94s</div></div>
+        <div class="kv-card"><div class="k">Mobile viewport meta</div><div class="v">Present &amp; correct</div></div>
+        <div class="kv-card"><div class="k">Console errors on load</div><div class="v">Not directly observed — see note</div></div>
+      </div>
+      <p>A global error listener in <span class="cite">index.html:74</span> specifically suppresses a <span class="cite">DataCloneError</span> / <span class="cite">PerformanceServerTiming</span> exception — strong evidence this error was previously firing on every page load and was silenced rather than fixed at the root.</p>
+    </section>
+
+    <section class="report-section" id="s2">
+      <div class="sec-head"><span class="sec-num">02</span><h2>SEO Audit</h2></div>
+      <p class="sec-lede">Verified live via curl + code citations</p>
+
+      <p>The <strong>homepage</strong> has genuinely good static SEO: real title, meta description, keywords, canonical link, full Open Graph + Twitter Card tags, and two JSON-LD blocks (<span class="cite">Organization</span>, <span class="cite">WebSite</span>) baked directly into <span class="cite">public/index.html</span> — actually crawlable without JS.</p>
+
+      <div class="callout crit">
+        <span class="callout-label">Critical — every other page's SEO tags are dead code</span>
+        <p><span class="cite">react-helmet-async</span> is listed in <span class="cite">package.json</span> as a dependency but <strong>never imported anywhere</strong>. <span class="cite">SearchPage</span> (<span class="cite">App.js:1055-1057</span>) and <span class="cite">HotelDetailPage</span> (<span class="cite">App.js:1235-1262</span>) write <span class="cite">&lt;title&gt;</span>/<span class="cite">&lt;meta&gt;</span>/JSON-LD as JSX directly in the page body. With no head-portal library, these render as inert DOM nodes inside <span class="cite">#root</span> — they never reach the real <span class="cite">&lt;head&gt;</span>. Every hotel and search page shares the homepage's title/description/OG-image on Google and on social shares (WhatsApp, Facebook, X unfurls included), and the hand-written per-hotel <span class="cite">LodgingBusiness</span> structured data never actually ships.</p>
+      </div>
+
+      <div class="callout high">
+        <span class="callout-label">High — sitemap advertises cities with zero inventory</span>
+        <p><span class="cite">sitemap.xml</span> lists dedicated pages for Dar es Salaam, Arusha, Zanzibar, Moshi, Dodoma, Mwanza. Live inventory today covers only Musoma and Arusha. <strong>4 of 6 sitemap city pages return zero results</strong> — a thin-content signal that reads to Google as broken or abandoned.</p>
+      </div>
+
+      <div class="findings-summary">
+        <h4>SEO gaps — summary</h4>
+        <ol>
+          <li>No <span class="cite">react-helmet-async</span> usage despite being installed — per-page tags never reach <span class="cite">&lt;head&gt;</span>.</li>
+          <li>Search and hotel-detail pages are invisible to non-JS-executing crawlers and link-preview bots.</li>
+          <li>Structured data is written but never delivered.</li>
+          <li>Sitemap lists 4 cities with zero live inventory.</li>
+          <li>Two URL shapes for the same hotel page (<span class="cite">/hotel/:id</span> and <span class="cite">/hotels/:city/:slug</span>) with no canonicalization between them.</li>
+          <li>No sitemap entries for individual hotel pages at all.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="report-section" id="s3">
+      <div class="sec-head"><span class="sec-num">03</span><h2>Guest Flow Analysis</h2></div>
+      <p class="sec-lede">Inferred from code — exact file:line cited, not click-tested live</p>
+
+      <p>Guests can browse fully anonymously. The homepage hero collects City / Check-in / Check-out / Guests; <span class="cite">SearchPage</span> filters actually wired to the API are city, min/max price, and sort — no amenities or room-type filter, no pagination (the entire result set loads in one request).</p>
+
+      <div class="callout crit">
+        <span class="callout-label">Bug — date picker is decorative</span>
+        <p>The homepage hero collects real check-in/check-out dates and puts them in the <span class="cite">/search?...</span> URL, but <span class="cite">SearchPage</span> only ever reads <span class="cite">city</span> back out (<span class="cite">App.js:1015, 1038-1049</span>). <strong>A guest who picks travel dates gets results with zero availability filtering</strong> — the dates are silently discarded.</p>
+      </div>
+
+      <p><strong>Hotel detail page:</strong> photo gallery with lightbox, plain-text description, amenity badges, room cards, and reviews. No embedded map anywhere in the codebase — location is address text plus a "Get Directions" button that opens an external Google Maps link. Since zero hotels have coordinates (§06), this button has no real destination for any live listing today.</p>
+
+      <div class="callout crit">
+        <span class="callout-label">Highest-impact fix available — contact info hidden behind login</span>
+        <p>Call and WhatsApp CTAs only render as real <span class="cite">tel:</span>/<span class="cite">wa.me</span> links <strong>if the visitor is logged in</strong>; logged-out visitors get a "please log in" modal instead. WhatsApp has no visible affordance at all when logged out. Since 100% of live hotels are contact-only "imported" listings, <strong>this hides the site's only functioning conversion path from every first-time visitor</strong> — nearly everyone arriving from Google or social media.</p>
+      </div>
+
+      <p><strong>Registration:</strong> single step — name, email, phone, password, plus Google OAuth. Low friction. <strong>Login</strong> has no "Forgot password" link anywhere — no self-service reset exists for travelers or owners at all (only admin/owner-triggered resets for cashier accounts).</p>
+
+      <div class="callout high">
+        <span class="callout-label">Missing — no guest booking history</span>
+        <p>A logged-in traveler's "Dashboard" nav link resolves to the homepage. There is no <span class="cite">/my-bookings</span> route or component anywhere in the codebase. A guest who books a room has no way to review past or upcoming bookings after the confirmation screen.</p>
+      </div>
+
+      <div class="findings-summary">
+        <h4>Guest flow — friction points</h4>
+        <ol>
+          <li>Homepage date picker is decorative — a functional bug, not a missing feature.</li>
+          <li>Phone/WhatsApp contact hidden behind a login wall for anonymous visitors.</li>
+          <li>No map on hotel detail pages, and no hotel has coordinates to show one anyway.</li>
+          <li>No password reset for travelers/owners.</li>
+          <li>No booking history / "my bookings" page.</li>
+          <li>No amenities or room-type filter on search.</li>
+          <li>No pagination — a larger inventory will load as one unpaginated list.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="report-section" id="s4">
+      <div class="sec-head"><span class="sec-num">04</span><h2>Hotel Owner Flow Analysis</h2></div>
+      <p class="sec-lede">Inferred from code</p>
+
+      <div class="callout crit">
+        <span class="callout-label">Bottleneck — no self-serve hotel creation</span>
+        <p><span class="cite">/register-hotel</span> only creates the owner's personal account (name, email, phone, password) — zero hotel information is collected. <strong>Owners cannot create a listing under any circumstance</strong>; <span class="cite">MyHotels</span> has no "Add Hotel" button, and the underlying create form posts to an admin-only endpoint. The only paths to an owner having a hotel are an admin manually creating one or attaching the owner to an existing (often bulk-imported) record. Every owner signup today dead-ends on manual admin action.</p>
+      </div>
+
+      <p>Once attached, owners can edit address, phone, WhatsApp, website, Google Maps URL, description, and a fixed amenity checklist. <strong>Name and city are admin-only</strong> (owners must email support to change them). Photo upload is a real, complete feature: direct unsigned Cloudinary upload with progress bar, reorder, primary-photo selection, and a lightbox. Room types and pricing are fully editable.</p>
+
+      <div class="callout high">
+        <span class="callout-label">Missing — availability calendar</span>
+        <p>No calendar UI exists anywhere. Inventory is two static integers (<span class="cite">total_rooms</span> / <span class="cite">available_rooms</span>) — an owner cannot block a specific date for maintenance or an event, only manually edit a count that conflates "temporarily unavailable" with "permanently reduced."</p>
+      </div>
+
+      <p><strong>Analytics</strong> are genuinely strong: Recharts revenue area/pie charts, per-hotel bar chart, period-selectable revenue view, cashier performance stats. There is no listing-level views/clicks analytics, however — an owner can't tell if their listing is even being seen, only whether it converts.</p>
+    </section>
+
+    <section class="report-section" id="s5">
+      <div class="sec-head"><span class="sec-num">05</span><h2>Admin Panel Analysis</h2></div>
+      <p class="sec-lede">Inferred from code</p>
+
+      <p>Sections: Dashboard, Hotels, Owners, Cashiers, Import Hotels, Users. Hotel management is full CRUD (verify/suspend/edit/delete/attach-owner) plus a dedicated photo screen. Bulk Excel import is a genuinely sophisticated feature — header auto-detection, per-row preview with status/photo-count badges, batch naming, and an audit-trail history.</p>
+
+      <div class="callout crit">
+        <span class="callout-label">Critical — admin dashboard currently fails to build</span>
+        <p><span class="cite">frontend/src/pages/AdminDashboard.js</span> (locally modified, uncommitted) contains a duplicate, orphaned "Performance Modal" JSX block sitting outside any function, between <span class="cite">AdminUsers</span> and <span class="cite">AdminImport</span>. Confirmed via a JS parser: throws <span class="cite">Unexpected token</span>. The last committed <span class="cite">HEAD</span> version parses cleanly and has no Users tab at all — this reads as in-progress, unfinished work. <strong>The admin dashboard cannot be built or deployed until this duplicate block is removed.</strong></p>
+      </div>
+
+      <p>Owner approval has a proper pending queue with Approve/Reject. User management can view/filter/search all users and create any role, but has <strong>no per-row edit/deactivate</strong> in the general table. There is <strong>no dedicated bookings list/search view</strong> anywhere in the admin panel — only aggregate stats and per-cashier activity logs.</p>
+
+      <p>Worth investigating: <span class="cite">google_places_hotels_dodoma.xlsx</span> exists in the repo root, yet zero Dodoma hotels are live — either an unexecuted import or a targeting mismatch.</p>
+    </section>
+
+    <section class="report-section" id="s6">
+      <div class="sec-head"><span class="sec-num">06</span><h2>Data Quality</h2></div>
+      <p class="sec-lede">Verified live — queried api.habaristays.com/api/hotels directly</p>
+
+      <div class="stat-row">
+        <div class="stat-tile"><div class="stat-num">30</div><div class="stat-label">live hotels total</div></div>
+        <div class="stat-tile crit"><div class="stat-num">100%</div><div class="stat-label">status = "imported" (0 verified)</div></div>
+        <div class="stat-tile crit"><div class="stat-num">0%</div><div class="stat-label">have coordinates</div></div>
+        <div class="stat-tile crit"><div class="stat-num">0%</div><div class="stat-label">have WhatsApp number</div></div>
+        <div class="stat-tile ok"><div class="stat-num">87%</div><div class="stat-label">have ≥1 photo</div></div>
+        <div class="stat-tile warn"><div class="stat-num">67%</div><div class="stat-label">have a phone number</div></div>
+        <div class="stat-tile crit"><div class="stat-num">~0-7%</div><div class="stat-label">have a real description</div></div>
+        <div class="stat-tile warn"><div class="stat-num">2</div><div class="stat-label">cities cover 97% of listings</div></div>
+      </div>
+
+      <div class="callout crit">
+        <span class="callout-label">Pricing is a placeholder, not real data</span>
+        <p>28 of 30 hotels show an identical flat <span class="cite">min_price</span> of 50,000 TZS; only two differ (35,000 / 15,000). The bulk-import path defaults unparseable/missing prices to this hardcoded fallback and auto-creates one generic "Standard" room type per hotel. The "100% have a price" figure is real but misleading — it reflects a system default, not researched pricing.</p>
+      </div>
+
+      <p><strong>City coverage:</strong> Musoma 18, Arusha 11, "Iringo" 1 (likely a misspelling of Iringa — a real Tanzanian region). <strong>Zero hotels in Dar es Salaam, Zanzibar, Dodoma, Moshi, or Mwanza</strong> — the five cities most prominently promoted on the homepage, footer, and sitemap.</p>
+
+      <p>Coordinates are structurally, not incidentally, absent: the bulk-import code path never maps <span class="cite">latitude</span>/<span class="cite">longitude</span>/<span class="cite">website</span>/<span class="cite">whatsapp_number</span>/<span class="cite">amenities</span> at all. Every future bulk import will have the same gaps until the import code itself is extended.</p>
+
+      <div class="table-wrap"><table>
+        <thead><tr><th>Hotel</th><th>City</th><th class="num">Photos</th><th>Phone</th><th>Coords</th><th class="num">Price (TZS)</th></tr></thead>
+        <tbody>
+          <tr><td>Dao lodge</td><td>Musoma</td><td class="num">1</td><td>—</td><td>—</td><td class="num">50,000*</td></tr>
+          <tr><td>Goodluck Lodge Musoma</td><td>Musoma</td><td class="num">3</td><td>✓</td><td>—</td><td class="num">50,000*</td></tr>
+          <tr><td>Triple M Executive Lodge</td><td>Musoma</td><td class="num">3</td><td>✓</td><td>—</td><td class="num">50,000*</td></tr>
+          <tr><td>MUTA LODGE</td><td>Musoma</td><td class="num">3</td><td>✓</td><td>—</td><td class="num">50,000*</td></tr>
+          <tr><td>Masai Mara Lodge</td><td>Musoma</td><td class="num">3</td><td>✓</td><td>—</td><td class="num">50,000*</td></tr>
+          <tr><td>Dreamers lodge</td><td>Musoma</td><td class="num">0</td><td>—</td><td>—</td><td class="num">50,000*</td></tr>
+          <tr><td>Le grand Victoria hotel</td><td>"Iringo" (typo?)</td><td class="num">3</td><td>✓</td><td>—</td><td class="num">50,000*</td></tr>
+          <tr><td>CASTER EXECUTIVE LODGE</td><td>Musoma</td><td class="num">3</td><td>✓</td><td>—</td><td class="num">35,000</td></tr>
+          <tr><td>Matvilla Hotel Musoma</td><td>Musoma</td><td class="num">0</td><td>✓</td><td>—</td><td class="num">15,000</td></tr>
+          <tr><td>Moivaro eco hostel</td><td>Arusha</td><td class="num">3</td><td>✓</td><td>—</td><td class="num">50,000*</td></tr>
+        </tbody>
+      </table></div>
+      <p style="font-size:12.5px;color:var(--text-faint);margin-top:-14px;">* flagged as the system default fallback price, not confirmed real pricing</p>
+
+      <p>No true duplicates found by name (though "Masai Mara Lodge" and "Masailand Safari &amp; Lodge" — different cities — are similarly named and worth a manual glance). No hotels outside Tanzania.</p>
+    </section>
+
+    <section class="report-section" id="s7">
+      <div class="sec-head"><span class="sec-num">07</span><h2>Mobile UX</h2></div>
+      <p class="sec-lede">Inferred from code — Tailwind responsive classes reviewed directly</p>
+
+      <div class="callout good">
+        <span class="callout-label">Public site — solid</span>
+        <p>Navbar correctly hides desktop links below <span class="cite">md</span> with a real hamburger + slide-down panel and comfortable tap targets. Search filters stack full-width below <span class="cite">lg</span>. Hotel card grid drops to one column on mobile. Would work fine at 375px.</p>
+      </div>
+
+      <div class="callout crit">
+        <span class="callout-label">Admin dashboard — no mobile handling at all</span>
+        <p>Fixed 256px sidebar with <strong>no responsive class whatsoever</strong>; content margin (<span class="cite">ml-64</span>) has no breakpoint prefix, so it's permanently shifted right with the sidebar permanently visible. No collapse mechanism anywhere. Tables use <span class="cite">overflow-hidden</span> instead of <span class="cite">overflow-x-auto</span> — content clips instead of scrolling.</p>
+      </div>
+
+      <div class="callout high">
+        <span class="callout-label">Owner dashboard — sidebar overlaps content below 1024px</span>
+        <p>Same fixed 256px sidebar, but content only gets pushed right starting at the <span class="cite">lg</span> breakpoint — below that, the sidebar visually overlaps the dashboard with no way to dismiss it.</p>
+      </div>
+
+      <div class="callout good">
+        <span class="callout-label">Cashier dashboard — the reference implementation</span>
+        <p>Sidebar properly hidden below <span class="cite">md</span> and replaced with a dedicated mobile bottom tab bar, plus card-list alternates to tables on small screens. Clearly the most recently and carefully built part of the app — the template Owner/Admin should be brought up to.</p>
+      </div>
+    </section>
+
+    <section class="report-section" id="s8">
+      <div class="sec-head"><span class="sec-num">08</span><h2>Performance</h2></div>
+      <p class="sec-lede">Verified live via repeated curl timing tests</p>
+
+      <div class="callout crit">
+        <span class="callout-label">Most severe finding in this audit</span>
+        <p>API TTFB across 5 separate runs: <strong class="mono">13.8s / 17.3s / 14.0s / 15.1s / 18.6s</strong>. Not a cold-start fluke — consistent across repeated, spaced-out requests. Given the homepage's featured hotels and the entire search page depend on this same endpoint, <strong>this latency affects almost every meaningful interaction on the site</strong>, and on Tanzanian 3G would very plausibly cause timeouts or abandonment before results ever appear.</p>
+      </div>
+
+      <div class="table-wrap"><table>
+        <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Homepage TTFB (3 runs)</td><td class="mono">1.19s / 7.47s / 2.94s</td></tr>
+          <tr><td>API total response time</td><td class="mono">15.8s – 20.3s</td></tr>
+          <tr><td>Main JS bundle</td><td class="mono">396 KB, gzip-compressed, 1yr immutable cache</td></tr>
+          <tr><td>HTTP → HTTPS redirect</td><td>Working (302)</td></tr>
+        </tbody>
+      </table></div>
+
+      <p>Likely culprits given the stack: a Cloud Run instance scaled to zero with a slow cold start, a Postgres connection-pool cold-start, or an N+1 query pattern in the hotel-list endpoint. Images are served via Cloudinary (responsive transforms via <span class="cite">getPhotoUrl</span>) — good practice, likely appropriately sized already. No visible API response caching was observed — even a 60-second in-memory cache on the hotel list would likely help enormously for minimal effort.</p>
+    </section>
+
+    <section class="report-section" id="s9">
+      <div class="sec-head"><span class="sec-num">09</span><h2>Security</h2></div>
+      <p class="sec-lede">Verified via code review + live header checks — the most severe issues in this audit</p>
+
+      <div class="callout crit">
+        <span class="callout-label pill crit" style="margin-bottom:8px;">Critical</span>
+        <p><strong>Unrestricted role self-assignment on public registration.</strong> <span class="cite">POST /api/auth/register</span> accepts a client-supplied <span class="cite">role</span> field with no server-side allowlist; <span class="cite">is_verified</span> is set <span class="cite">True</span> for anything but <span class="cite">"owner"</span>. <strong>A single unauthenticated request with <span class="cite">{"role":"admin",...}</span> creates a fully-verified admin account with a working token</strong> — no credentials, no chained exploit. Top priority fix in this entire audit.</p>
+      </div>
+
+      <div class="callout crit">
+        <span class="callout-label pill crit" style="margin-bottom:8px;">Critical</span>
+        <p><strong>Unauthenticated payment confirmation + booking PII exposure.</strong> <span class="cite">POST /api/bookings/{id}/confirm-payment</span> has no auth dependency and never calls a real payment gateway — it trusts the client's submitted reference string. <span class="cite">GET /api/bookings/{id}</span> is also fully public, returning guest name/phone/email/payment reference. Booking refs (<span class="cite">HS-{year}-{4 digits}</span>) are realistically enumerable.</p>
+      </div>
+
+      <div class="callout crit">
+        <span class="callout-label pill high" style="margin-bottom:8px;">High</span>
+        <p><strong>Broken authorization (IDOR) on hotel/room editing.</strong> Several endpoints check "deny only if role is <span class="cite">owner</span> AND not this hotel's owner" — <span class="cite">traveler</span> and <span class="cite">cashier</span> fall through with zero restriction. Affected: <span class="cite">PUT/PATCH /api/hotels/{id}</span>, <span class="cite">POST /api/rooms</span>, <span class="cite">PUT/DELETE /api/rooms/{id}</span>. Any self-registered traveler account can edit or delete another hotel's rooms today.</p>
+      </div>
+
+      <div class="table-wrap"><table>
+        <thead><tr><th>Severity</th><th>Finding</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill high">High</span></td><td>No role check on <span class="cite">/bookings/{id}/checkin</span>/<span class="cite">checkout</span> — any traveler can check in/out any booking</td></tr>
+          <tr><td><span class="pill high">High</span></td><td>No rate limiting anywhere on <span class="cite">/auth/login</span> or <span class="cite">/auth/register</span></td></tr>
+          <tr><td><span class="pill med">Medium</span></td><td>Hardcoded JWT fallback secret (<span class="cite">'habari-stays-secret-key-change-in-production'</span>) if env var is unset</td></tr>
+          <tr><td><span class="pill med">Medium</span></td><td>Seed script commits plaintext <span class="cite">admin123</span> / <span class="cite">owner123</span> credentials to source control</td></tr>
+          <tr><td><span class="pill low">Low</span></td><td>Dead <span class="cite">server.py</span> (Mongo) + duplicate <span class="cite">/rooms</span> vs <span class="cite">/room-types</span> routes with inconsistent auth</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="callout good">
+        <span class="callout-label">What's correctly configured</span>
+        <p>HTTPS is enforced with a proper redirect; security headers (<span class="cite">X-Frame-Options</span>, <span class="cite">X-Content-Type-Options</span>, <span class="cite">X-XSS-Protection</span>) are present. CORS uses an explicit origin allowlist, not a wildcard. Password hashing uses bcrypt correctly. No genuinely private key (payment secret, DB credential) was found exposed in frontend-served code — only expected-public identifiers (PostHog key, Google OAuth client ID, Cloudinary preset).</p>
+      </div>
+    </section>
+
+    <section class="report-section" id="s10">
+      <div class="sec-head"><span class="sec-num">10</span><h2>Competitive Gap Analysis</h2></div>
+      <p class="sec-lede">As a hotel directory (its current real-world state) vs. as a future booking platform</p>
+
+      <h3>Missing for a hotel directory, today</h3>
+      <ol>
+        <li><strong>A visible phone number/WhatsApp without login</strong> — hiding the one thing a visitor needs undermines the actual product.</li>
+        <li><strong>A map/location view</strong> — zero coordinates exist and no map renders anywhere; table stakes for a physical-location product.</li>
+        <li><strong>Real descriptions and photos</strong> beyond Google-Places scrape defaults — near-zero description coverage makes listings feel identical and untrustworthy.</li>
+      </ol>
+
+      <h3>Missing for a future real booking platform</h3>
+      <ol>
+        <li><strong>A real payment gateway</strong> — an unauthenticated, gateway-free confirmation endpoint is not a viable foundation for real money.</li>
+        <li><strong>Availability calendar / date-blocking</strong> — without it, double-booking risk is real the moment more than one channel is used for the same room.</li>
+        <li><strong>Guest booking history</strong> — a booking product where a guest can't see their own bookings is missing a core category expectation.</li>
+      </ol>
+    </section>
+
+    <section class="report-section" id="fixlist">
+      <div class="sec-head"><h2>Priority Fix List</h2></div>
+      <div class="table-wrap"><table class="priority-table">
+        <thead><tr><th>Priority</th><th>Area</th><th>Issue</th><th>Effort</th><th>Impact</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill crit">P0</span></td><td>Security</td><td>Public registration allows client-supplied role — anyone can self-register as admin</td><td>Low</td><td>Critical</td></tr>
+          <tr><td><span class="pill crit">P0</span></td><td>Security</td><td>Unauthenticated payment confirmation; booking PII exposed via public GET</td><td>Low–Med</td><td>Critical</td></tr>
+          <tr><td><span class="pill crit">P0</span></td><td>Build</td><td>AdminDashboard.js has an uncommitted duplicate JSX block breaking the build</td><td>Low</td><td>Critical</td></tr>
+          <tr><td><span class="pill crit">P0</span></td><td>Security</td><td>IDOR — any traveler/cashier can edit/delete another hotel's rooms</td><td>Low–Med</td><td>Critical</td></tr>
+          <tr><td><span class="pill crit">P0</span></td><td>Performance</td><td>API responds in 13–20s consistently — root-cause and fix</td><td>Med</td><td>Critical</td></tr>
+          <tr><td><span class="pill high">P1</span></td><td>Security</td><td>No role check on checkin/checkout — any traveler can act on any booking</td><td>Low</td><td>High</td></tr>
+          <tr><td><span class="pill high">P1</span></td><td>Security</td><td>Hardcoded JWT fallback secret; verify prod env var is set</td><td>Low</td><td>High</td></tr>
+          <tr><td><span class="pill high">P1</span></td><td>Security</td><td>No rate limiting on login/register</td><td>Low</td><td>High</td></tr>
+          <tr><td><span class="pill high">P1</span></td><td>Guest UX</td><td>Phone/WhatsApp CTAs hidden behind login wall on all listings</td><td>Low</td><td>High</td></tr>
+          <tr><td><span class="pill high">P1</span></td><td>SEO</td><td>No react-helmet-async usage — per-page tags never reach &lt;head&gt;</td><td>Med</td><td>High</td></tr>
+          <tr><td><span class="pill high">P1</span></td><td>Data</td><td>4 of 6 sitemap cities have zero live hotels</td><td>Med (ops)</td><td>High</td></tr>
+          <tr><td><span class="pill high">P1</span></td><td>Guest UX</td><td>Homepage date-picker search does nothing</td><td>Low–Med</td><td>Med–High</td></tr>
+          <tr><td><span class="pill med">P2</span></td><td>Security</td><td>Rotate seed admin/owner passwords if live in production</td><td>Low</td><td>Med–High</td></tr>
+          <tr><td><span class="pill med">P2</span></td><td>Owner flow</td><td>No self-serve hotel creation — fully admin-bottlenecked onboarding</td><td>Med–High</td><td>High</td></tr>
+          <tr><td><span class="pill med">P2</span></td><td>Data</td><td>Bulk import never populates coordinates/website/WhatsApp/amenities</td><td>Med</td><td>High</td></tr>
+          <tr><td><span class="pill med">P2</span></td><td>Mobile</td><td>Admin dashboard has zero responsive handling</td><td>Med</td><td>Med–High</td></tr>
+          <tr><td><span class="pill med">P2</span></td><td>Mobile</td><td>Owner dashboard sidebar overlaps content below 1024px</td><td>Low–Med</td><td>Medium</td></tr>
+          <tr><td><span class="pill med">P2</span></td><td>Guest UX</td><td>No guest booking-history / "my bookings" page</td><td>Med</td><td>Med–High</td></tr>
+          <tr><td><span class="pill med">P2</span></td><td>Architecture</td><td>Dead server.py + duplicate rooms/room-types routes, inconsistent auth</td><td>Med</td><td>Medium</td></tr>
+          <tr><td><span class="pill low">P3</span></td><td>Owner flow</td><td>No availability calendar / date-blocking</td><td>High</td><td>High</td></tr>
+          <tr><td><span class="pill low">P3</span></td><td>Performance</td><td>No visible API response caching</td><td>Low–Med</td><td>Medium</td></tr>
+          <tr><td><span class="pill low">P3</span></td><td>Account</td><td>No password self-reset for travelers/owners</td><td>Med</td><td>Medium</td></tr>
+          <tr><td><span class="pill low">P3</span></td><td>Admin</td><td>No dedicated bookings list/search view</td><td>Med</td><td>Medium</td></tr>
+          <tr><td><span class="pill low">P3</span></td><td>Data</td><td>"Iringo" likely a city-name typo for "Iringa"</td><td>Low</td><td>Low</td></tr>
+          <tr><td><span class="pill low">P3</span></td><td>Cleanup</td><td>Unused dependencies (Stripe, boto3, AI SDKs) — scaffold cruft</td><td>Low</td><td>Low</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="report-section" id="working">
+      <div class="sec-head"><h2>What's Working Well</h2></div>
+      <ul>
+        <li><strong>Cashier dashboard</strong> is genuinely well-designed and mobile-first — the clear template for bringing Owner/Admin up to the same bar.</li>
+        <li><strong>Photo management</strong> (Cloudinary upload, reorder, primary selection, lightbox) is complete and polished on both owner and admin sides.</li>
+        <li><strong>Revenue analytics</strong> (Recharts area/pie/bar, period selection, per-cashier performance) are more sophisticated than most early-stage hotel platforms bother building this early.</li>
+        <li><strong>Bulk Excel import</strong> with per-row preview, validation, and audit-trail batches is a solid, well-thought-out admin tool.</li>
+        <li><strong>Bilingual EN/SW support</strong> with a persistent language toggle shows real attention to the local market.</li>
+        <li><strong>Guest checkout requires no forced account creation</strong> — good practice.</li>
+        <li><strong>CORS is properly restrictive</strong>, and HTTPS is correctly enforced.</li>
+        <li><strong>Homepage SEO fundamentals are genuinely good</strong> — the gap is everywhere else, not here.</li>
+        <li><strong>Public-facing responsive design</strong> works well down to 375px.</li>
+      </ul>
+    </section>
+
+    <section class="report-section" id="next">
+      <div class="sec-head"><h2>Recommended Next Steps</h2></div>
+      <ol>
+        <li><strong>Same day:</strong> patch the registration role-escalation bug and the unauthenticated payment-confirmation endpoint.</li>
+        <li><strong>Same day:</strong> fix the <span class="cite">AdminDashboard.js</span> syntax error before any further deploy.</li>
+        <li><strong>This week:</strong> investigate and fix the 13–20s API latency — likely blocking real usage on mobile/3G more than any UX issue in this report.</li>
+        <li><strong>This week:</strong> fix the IDOR pattern on hotel/room edit endpoints; remove the unrestricted checkin/checkout routes.</li>
+        <li><strong>This week:</strong> un-gate phone/WhatsApp contact from the login wall — likely the highest-ROI guest-UX change available.</li>
+        <li><strong>Next sprint:</strong> wire up <span class="cite">react-helmet-async</span> (already installed); reconcile sitemap city coverage with real inventory.</li>
+        <li><strong>Next sprint:</strong> decide whether to populate Dodoma/Dar es Salaam/Zanzibar/Moshi with real inventory or remove them from the sitemap/homepage/footer until they have listings.</li>
+        <li><strong>Ongoing:</strong> delete the dead <span class="cite">server.py</span> Mongo implementation; consolidate <span class="cite">/rooms</span>/<span class="cite">/room-types</span> route duplication.</li>
+        <li><strong>Roadmap:</strong> prioritize self-serve hotel creation for owners and a basic availability calendar — both are structural blockers to scaling beyond manually-onboarded hotels.</li>
+      </ol>
+    </section>
+
+  </main>
+</div>
+
+<footer class="report-footer">
+  Habari Stays — Technical &amp; UX Audit · Compiled September 11, 2026 · Generated with Claude Code
+</footer>

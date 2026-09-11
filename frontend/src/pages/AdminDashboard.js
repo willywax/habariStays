@@ -29,6 +29,7 @@ const AdminDashboard = () => {
     { path: "/admin/owners", icon: UserCheck, label: translate("Owners", "Wamiliki") },
     { path: "/admin/cashiers", icon: Users, label: translate("Cashiers", "Weka Hazina") },
     { path: "/admin/import", icon: Upload, label: translate("Import Hotels", "Ingiza Hoteli") },
+    { path: "/admin/users", icon: Users, label: translate("Users", "Watumiaji") },
   ];
 
   const isActive = (path, exact) => {
@@ -78,6 +79,7 @@ const AdminDashboard = () => {
           <Route path="/hotels/:hotelId/photos" element={<AdminHotelPhotos />} />
           <Route path="/owners" element={<AdminOwners />} />
           <Route path="/cashiers" element={<AdminCashiers />} />
+          <Route path="/users" element={<AdminUsers />} />
           <Route path="/import" element={<AdminImport />} />
         </Routes>
       </main>
@@ -762,6 +764,300 @@ const AdminCashiers = () => {
       )}
 
       {/* Performance Modal */}
+      {perfModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="perf-modal">
+            <div className="p-5 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setPerfModal(null)} className="p-1.5 hover:bg-[#F4F4F5] rounded-lg" data-testid="perf-back-btn">
+                  <ChevronLeft className="w-5 h-5 text-[#52525B]" />
+                </button>
+                <div>
+                  <h2 className="font-['Outfit'] text-lg font-bold">{perfModal.cashier?.full_name}</h2>
+                  <p className="text-xs text-[#A1A1AA]">{perfModal.cashier?.email} | {perfModal.cashier?.assigned_hotel_name}</p>
+                </div>
+              </div>
+              <button onClick={() => setPerfModal(null)} className="p-1 hover:bg-[#F4F4F5] rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-4 gap-3">
+                <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-600">{translate("Walk-ins", "Walk-ins")}</p><p className="text-xl font-bold text-green-700">{perfModal.this_month?.walkins_recorded}</p></div>
+                <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-600">{translate("Check-ins", "Check-ins")}</p><p className="text-xl font-bold text-blue-700">{perfModal.this_month?.checkins_confirmed}</p></div>
+                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">{translate("Checkouts", "Checkouts")}</p><p className="text-xl font-bold text-gray-700">{perfModal.this_month?.checkouts_processed}</p></div>
+                <div className="bg-[#0F4C5C]/10 rounded-lg p-3"><p className="text-xs text-[#0F4C5C]">{translate("Revenue", "Mapato")}</p><p className="text-xl font-bold text-[#0F4C5C]">TZS {(perfModal.this_month?.total_revenue || 0).toLocaleString()}</p></div>
+              </div>
+              <div className="bg-white rounded-xl border border-border overflow-hidden">
+                <div className="px-4 py-3 border-b border-border"><h3 className="text-sm font-semibold">{translate("Activity (This Month)", "Shughuli (Mwezi Huu)")}</h3></div>
+                {perfModal.activity_log?.length > 0 ? (
+                  <table className="w-full">
+                    <thead className="bg-[#F4F4F5]"><tr>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Date", "Tarehe")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Action", "Kitendo")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Guest", "Mgeni")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Room", "Chumba")}</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Amount", "Kiasi")}</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-border">
+                      {perfModal.activity_log.slice(0, 50).map(l => (
+                        <tr key={l.id}>
+                          <td className="px-3 py-2 text-[10px] text-[#52525B]">{l.timestamp ? new Date(l.timestamp).toLocaleDateString() : ""}</td>
+                          <td className="px-3 py-2 text-[10px]">{l.action_type?.replace("_", " ")}</td>
+                          <td className="px-3 py-2 text-[10px]">{l.guest_name}</td>
+                          <td className="px-3 py-2 text-[10px]">{l.room_type_name}</td>
+                          <td className="px-3 py-2 text-[10px] font-medium">{l.amount_tzs ? `TZS ${l.amount_tzs.toLocaleString()}` : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : <div className="p-6 text-center text-sm text-[#A1A1AA]">{translate("No activity this month", "Hakuna shughuli mwezi huu")}</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AdminUsers = () => {
+  const [users, setUsers] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterRole, setFilterRole] = useState("traveler");
+  const [search, setSearch] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createdTempPassword, setCreatedTempPassword] = useState(null);
+  const [newUser, setNewUser] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    role: "traveler",
+    assigned_hotel_id: ""
+  });
+  const [saving, setSaving] = useState(false);
+  const { lang, t } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
+
+  useEffect(() => { fetchUsers(); fetchHotels(); }, [filterRole, search]);
+
+  const translateRole = (role) => {
+    const map = {
+      traveler: translate("Customer", "Mteja"),
+      owner: translate("Owner", "Mmiliki"),
+      cashier: translate("Cashier", "Mweka Hazina"),
+      admin: translate("Admin", "Msimamizi")
+    };
+    return map[role] || role;
+  };
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const params = { search: search || undefined };
+      if (filterRole && filterRole !== "all") params.role = filterRole;
+      const res = await api.get("/admin/users", { params });
+      setUsers(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchHotels = async () => {
+    try {
+      const res = await api.get("/admin/all-hotels");
+      setHotels(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSearch = async (value) => {
+    setSearch(value);
+    await fetchUsers();
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const body = {
+        ...newUser,
+        assigned_hotel_id: newUser.assigned_hotel_id || null
+      };
+      const res = await api.post("/admin/users", body);
+      setCreatedTempPassword(res.data.temp_password);
+      toast.success(translate("User created successfully", "Mtumiaji ameundwa kwa mafanikio"));
+      setNewUser({ full_name: "", email: "", phone: "", role: "traveler", assigned_hotel_id: "" });
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || translate("Failed to create user", "Imeshindikana kuunda mtumiaji"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredUsers = users.filter((user) =>
+    search.trim().length === 0 ||
+    user.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    user.email.toLowerCase().includes(search.toLowerCase()) ||
+    user.phone.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">{translate("Users", "Watumiaji")}</h1>
+          <p className="text-[#52525B]">{translate("View registered customers and system users", "Tazama wateja waliojisajili na watumiaji wa mfumo")}</p>
+        </div>
+        <button onClick={() => { setShowCreateModal(true); setCreatedTempPassword(null); }}
+          className="flex items-center gap-2 bg-[#1B4332] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#143D28]"
+          data-testid="admin-add-user-btn">
+          <Plus className="w-4 h-4" /> {translate("Create User", "Unda Mtumiaji")}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_0.8fr] gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A1A1AA]" />
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch(e.target.value)}
+            placeholder={translate("Search users by name, email or phone...", "Tafuta watumiaji kwa jina, email au simu...")}
+            className="w-full pl-10 pr-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+            data-testid="search-users-input" />
+        </div>
+        <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)}
+          className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+          data-testid="filter-role-select">
+          <option value="all">{translate("All Roles", "Majukumu Yote")}</option>
+          <option value="traveler">{translate("Customers", "Wateja")}</option>
+          <option value="owner">{translate("Owners", "Wamiliki")}</option>
+          <option value="cashier">{translate("Cashiers", "Weka Hazina")}</option>
+          <option value="admin">{translate("Admins", "Wasimamizi")}</option>
+        </select>
+      </div>
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-[#F4F4F5]">
+            <tr>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Name", "Jina")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Email</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Phone", "Simu")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Role", "Jukumu")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Hotel", "Hotel")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Status", "Hali")}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {filteredUsers.map((user) => (
+              <tr key={user.id} className="hover:bg-[#F4F4F5]/50" data-testid={`user-row-${user.id}`}>
+                <td className="px-4 py-4 font-medium text-[#18181B]">{user.full_name}</td>
+                <td className="px-4 py-4 text-sm text-[#52525B]">{user.email}</td>
+                <td className="px-4 py-4 text-sm text-[#52525B]">{user.phone}</td>
+                <td className="px-4 py-4 text-sm text-[#52525B]">{translateRole(user.role)}</td>
+                <td className="px-4 py-4 text-sm text-[#52525B]">{user.assigned_hotel_name || "-"}</td>
+                <td className="px-4 py-4">
+                  <span className={`px-2 py-1 rounded-full text-[11px] font-medium ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {user.is_active ? translate("Active", "Hai") : translate("Inactive", "Imezimwa")}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filteredUsers.length === 0 && <div className="text-center py-12 text-[#A1A1AA]">{translate("No users found", "Hakuna watumiaji")}</div>}
+      </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-['Outfit'] text-xl font-bold text-[#18181B]">{translate("Create New User", "Unda Mtumiaji Mpya")}</h2>
+                <p className="text-sm text-[#52525B]">{translate("Create customers, owners, cashiers, or admin accounts.", "Unda wateja, wamiliki, cashiers, au wasimamizi.")}</p>
+              </div>
+              <button onClick={() => { setShowCreateModal(false); setCreatedTempPassword(null); }} className="p-2 rounded-lg hover:bg-[#F4F4F5]">
+                <X className="w-5 h-5 text-[#52525B]" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#52525B] mb-1">{translate("Full Name", "Jina Kamili")}</label>
+                  <input type="text" value={newUser.full_name} onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" required data-testid="create-user-name" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#52525B] mb-1">Email</label>
+                  <input type="email" value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" required data-testid="create-user-email" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#52525B] mb-1">{translate("Phone", "Simu")}</label>
+                  <input type="tel" value={newUser.phone} onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" required data-testid="create-user-phone" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#52525B] mb-1">{translate("Role", "Jukumu")}</label>
+                  <select value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" data-testid="create-user-role">
+                    <option value="traveler">{translate("Customer", "Mteja")}</option>
+                    <option value="owner">{translate("Owner", "Mmiliki")}</option>
+                    <option value="cashier">{translate("Cashier", "Mweka Hazina")}</option>
+                    <option value="admin">{translate("Admin", "Msimamizi")}</option>
+                  </select>
+                </div>
+              </div>
+
+              {(newUser.role === "cashier" || newUser.role === "owner") && (
+                <div>
+                  <label className="block text-sm font-medium text-[#52525B] mb-1">{translate("Assign Hotel", "Weka Hotel")}</label>
+                  <select value={newUser.assigned_hotel_id} onChange={(e) => setNewUser({...newUser, assigned_hotel_id: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]"
+                    data-testid="create-user-hotel">
+                    <option value="">{translate("No hotel assigned", "Hakuna hotel imewekwa")}</option>
+                    {hotels.map((hotel) => <option key={hotel.id} value={hotel.id}>{hotel.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {createdTempPassword && (
+                <div className="bg-[#F4F4F5] rounded-lg p-4 border border-border text-sm text-[#18181B]">
+                  <p className="font-medium mb-2">{translate("Temporary password", "Neno la siri la muda")}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-[#0F4C5C]">{createdTempPassword}</span>
+                    <button type="button" onClick={() => { navigator.clipboard.writeText(createdTempPassword); toast.success(translate("Copied", "Imenakiliwa!")); }}
+                      className="px-3 py-2 bg-[#0F4C5C] text-white rounded-lg text-sm font-medium">{translate("Copy", "Nakili")}</button>
+                  </div>
+                  <p className="text-xs text-[#52525B] mt-2">{translate("Share this temporary password with the user after creation.", "Shirikisha neno hili la siri la muda kwa mtumiaji baada ya kuunda.")}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => { setShowCreateModal(false); setCreatedTempPassword(null); }}
+                  className="flex-1 py-3 border border-border rounded-lg font-medium hover:bg-[#F4F4F5]">{t("cancel")}</button>
+                <button type="submit" disabled={saving}
+                  className="flex-1 py-3 bg-[#1B4332] text-white rounded-lg font-medium hover:bg-[#143D28] disabled:opacity-50"
+                  data-testid="submit-create-user">
+                  {saving ? "..." : translate("Create User", "Unda Mtumiaji")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ================== ADMIN IMPORT ==================
       {perfModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="perf-modal">
