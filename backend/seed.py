@@ -1,3 +1,4 @@
+# WARNING: rotate these credentials before any public launch. Never use in production.
 """
 Database Seed Script for Habari Stays
 

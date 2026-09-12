@@ -861,25 +861,16 @@ const LandingPage = () => {
 const HotelCard = ({ hotel, onSaveScroll }) => {
   const navigate = useNavigate();
   const { t, lang } = useLang();
-  const { user } = useAuth();
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  
   const isImported = hotel.status === "imported";
   const isVerified = hotel.status === "verified" || hotel.status === "owner_attached";
-  
+
   const handleClick = () => {
     if (onSaveScroll) onSaveScroll();
     navigate(`/hotel/${hotel.id}`);
   };
 
-  const handleContactClick = (e) => {
-    e.stopPropagation();
-    if (!user) { setShowLoginModal(true); return; }
-  };
-  
   return (
-    <>
-    <div 
+    <div
       className="group relative overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 border border-[#1A1A1A]/5 cursor-pointer"
       onClick={handleClick}
       data-testid={`hotel-card-${hotel.id}`}
@@ -936,22 +927,14 @@ const HotelCard = ({ hotel, onSaveScroll }) => {
           {isImported ? (
             <div className="flex gap-2">
               {hotel.phone_number && (
-                user ? (
-                  <a href={`tel:${hotel.phone_number}`} onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1 bg-[#1B4332] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#143D28]">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                    {lang === "sw" ? "Piga Simu" : "Call"}
-                  </a>
-                ) : (
-                  <button onClick={handleContactClick}
-                    className="flex items-center gap-1 bg-[#1B4332] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#143D28]">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                    {lang === "sw" ? "Piga Simu" : "Call"}
-                  </button>
-                )
+                <a href={`tel:${hotel.phone_number}`} onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 bg-[#1B4332] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#143D28]">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  {lang === "sw" ? "Piga Simu" : "Call"}
+                </a>
               )}
-              {hotel.whatsapp_number && user && (
-                <a href={`https://wa.me/${(hotel.whatsapp_number || "").replace(/\+/g, '')}`} target="_blank" rel="noopener noreferrer"
+              {hotel.whatsapp_number && (
+                <a href={`https://wa.me/${(hotel.whatsapp_number || "").replace(/\+/g, '')}?text=Habari%2C%20nimeona%20hoteli%20yenu%20kwenye%20Habari%20Stays.%20Nataka%20kujua%20upatikanaji%20wa%20chumba.`} target="_blank" rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-1 bg-[#25D366] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#20BD5A]">
                   WhatsApp
@@ -979,23 +962,6 @@ const HotelCard = ({ hotel, onSaveScroll }) => {
         </div>
       </div>
     </div>
-    {/* Login Modal for contact */}
-    {showLoginModal && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowLoginModal(false)}>
-        <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4 text-center" onClick={e => e.stopPropagation()} data-testid="login-required-modal">
-          <div className="w-14 h-14 bg-[#E07B2A]/10 rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-7 h-7 text-[#E07B2A]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-          </div>
-          <h3 className="font-['Outfit'] text-lg font-bold text-[#1A1A1A]">{lang === "sw" ? "Ingia ili kupiga simu hoteli" : "Log in to call hotel"}</h3>
-          <p className="text-sm text-[#1A1A1A]/60">{lang === "sw" ? "Jisajili au ingia ili kupata namba ya simu ya hoteli." : "Register or log in to get the hotel's phone number."}</p>
-          <div className="flex gap-3">
-            <Link to="/register" className="flex-1 py-2.5 bg-[#E07B2A] text-white rounded-lg font-medium text-sm hover:bg-[#C96A1F] text-center" data-testid="modal-register-btn">{lang === "sw" ? "Jisajili" : "Register"}</Link>
-            <Link to="/login" className="flex-1 py-2.5 border border-[#1A1A1A]/20 rounded-lg font-medium text-sm hover:bg-[#F4F4F5] text-center" data-testid="modal-login-btn">{lang === "sw" ? "Ingia Tayari" : "Log In"}</Link>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
   );
 };
 
@@ -1008,12 +974,15 @@ const SearchPage = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState(() => {
     const saved = sessionStorage.getItem("hs_search_state");
-    if (saved && !searchParams.get("city")) {
+    if (saved && !searchParams.get("city") && !searchParams.get("checkin")) {
       try { return JSON.parse(saved); } catch {}
     }
     return {
       city: searchParams.get("city") || "",
-      minPrice: "", maxPrice: "", amenities: "", sortBy: "rating"
+      minPrice: "", maxPrice: "", amenities: "", sortBy: "rating",
+      checkin: searchParams.get("checkin") || "",
+      checkout: searchParams.get("checkout") || "",
+      guests: searchParams.get("guests") || ""
     };
   });
 
@@ -1025,7 +994,12 @@ const SearchPage = () => {
   // Sync URL + session state on every filter change (no fetch)
   useEffect(() => {
     sessionStorage.setItem("hs_search_state", JSON.stringify(filters));
-    setSearchParams(filters.city ? { city: filters.city } : {}, { replace: true });
+    const params = {};
+    if (filters.city) params.city = filters.city;
+    if (filters.checkin) params.checkin = filters.checkin;
+    if (filters.checkout) params.checkout = filters.checkout;
+    if (filters.guests) params.guests = filters.guests;
+    setSearchParams(params, { replace: true });
   }, [filters]);
 
   useEffect(() => {
@@ -1043,6 +1017,8 @@ const SearchPage = () => {
       if (filters.minPrice) url += `&min_price=${filters.minPrice}`;
       if (filters.maxPrice) url += `&max_price=${filters.maxPrice}`;
       if (filters.sortBy) url += `&sort_by=${filters.sortBy}`;
+      if (filters.checkin) url += `&checkin=${encodeURIComponent(filters.checkin)}`;
+      if (filters.checkout) url += `&checkout=${encodeURIComponent(filters.checkout)}`;
       const res = await api.get(url);
       setHotels(res.data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
@@ -1063,6 +1039,13 @@ const SearchPage = () => {
               {filters.city ? `${lang === "sw" ? "Hoteli katika" : "Hotels in"} ${filters.city}` : t("searchHotels")}
             </h1>
             <p className="text-[#1A1A1A]/60">{hotels.length} {t("hotelsFound")}</p>
+            {filters.checkin && filters.checkout && (
+              <p className="mt-3 inline-block text-sm font-medium text-[#1B4332] bg-[#1B4332]/10 border border-[#1B4332]/20 rounded-lg px-4 py-2" data-testid="search-dates-banner">
+                {lang === "sw"
+                  ? `Inaonyesha hoteli kwa ${filters.checkin} → ${filters.checkout}`
+                  : `Showing hotels for ${filters.checkin} → ${filters.checkout}`}
+              </p>
+            )}
           </div>
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="lg:w-72 flex-shrink-0">
@@ -1164,12 +1147,10 @@ const HotelDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t, lang } = useLang();
-  const { user } = useAuth();
   const [hotel, setHotel] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [activePhoto, setActivePhoto] = useState(null);
 
   useEffect(() => {
@@ -1198,8 +1179,6 @@ const HotelDetailPage = () => {
 
   const isImported = hotel.status === "imported";
   const isVerified = hotel.status === "verified" || hotel.status === "owner_attached";
-
-  const handleContactClick = () => { if (!user) { setShowLoginModal(true); } };
 
   const handleGetDirections = () => {
     const destination = encodeURIComponent(`${hotel.name}, ${hotel.city}, Tanzania`);
@@ -1339,30 +1318,20 @@ const HotelDetailPage = () => {
                 </div>
               </div>
 
-              {/* Contact Buttons — gated behind login */}
+              {/* Contact Buttons — visible to all visitors */}
               <div className="flex gap-3 mt-6">
-                {user ? (
-                  <>
-                    {hotel.whatsapp_number && (
-                      <a href={`https://wa.me/${hotel.whatsapp_number.replace(/\+/g, '')}`} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 bg-[#25D366] text-white px-5 py-2 rounded-lg font-medium hover:bg-[#20BD5A] transition-all">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                        {t("whatsapp")}
-                      </a>
-                    )}
-                    <a href={`tel:${hotel.phone_number}`}
-                      className="flex items-center gap-2 bg-[#1B4332] text-white px-5 py-2 rounded-lg font-medium hover:bg-[#143D28] transition-all" data-testid="hotel-call-btn">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                      {hotel.phone_number}
-                    </a>
-                  </>
-                ) : (
-                  <button onClick={handleContactClick}
-                    className="flex items-center gap-2 bg-[#1B4332] text-white px-5 py-2 rounded-lg font-medium hover:bg-[#143D28] transition-all" data-testid="gated-call-btn">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                    {lang === "sw" ? "Piga Simu Hoteli" : "Call Hotel"}
-                  </button>
+                {hotel.whatsapp_number && (
+                  <a href={`https://wa.me/${hotel.whatsapp_number.replace(/\+/g, '')}?text=Habari%2C%20nimeona%20hoteli%20yenu%20kwenye%20Habari%20Stays.%20Nataka%20kujua%20upatikanaji%20wa%20chumba.`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-[#25D366] text-white px-5 py-2 rounded-lg font-medium hover:bg-[#20BD5A] transition-all">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    {t("whatsapp")}
+                  </a>
                 )}
+                <a href={`tel:${hotel.phone_number}`}
+                  className="flex items-center gap-2 bg-[#1B4332] text-white px-5 py-2 rounded-lg font-medium hover:bg-[#143D28] transition-all" data-testid="hotel-call-btn">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  {hotel.phone_number}
+                </a>
               </div>
 
               {/* Hotel Amenities */}
@@ -1449,21 +1418,11 @@ const HotelDetailPage = () => {
                         </div>
                         {isImported ? (
                           <div className="flex flex-col gap-2">
-                            {user ? (
-                              <a href={`tel:${hotel.phone_number}`}
-                                className="bg-[#1B4332] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all text-center"
-                                data-testid={`room-call-link-${room.id}`}>
-                                {lang === "sw" ? "Piga Simu" : "Call"}
-                              </a>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={handleContactClick}
-                                className="bg-[#1B4332] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all text-center"
-                                data-testid={`room-call-cta-${room.id}`}>
-                                {lang === "sw" ? "Piga Simu" : "Call"}
-                              </button>
-                            )}
+                            <a href={`tel:${hotel.phone_number}`}
+                              className="bg-[#1B4332] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all text-center"
+                              data-testid={`room-call-link-${room.id}`}>
+                              {lang === "sw" ? "Piga Simu" : "Call"}
+                            </a>
                           </div>
                         ) : (
                           <button
@@ -1531,24 +1490,15 @@ const HotelDetailPage = () => {
                 </p>
                 <div className="space-y-2">
                   {hotel.phone_number && (
-                    user ? (
-                      <a href={`tel:${hotel.phone_number}`}
-                        className="flex items-center gap-2 w-full bg-[#1B4332] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all justify-center"
-                        data-testid="contact-call-btn">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                        {hotel.phone_number}
-                      </a>
-                    ) : (
-                      <button onClick={handleContactClick}
-                        className="flex items-center gap-2 w-full bg-[#1B4332] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all justify-center"
-                        data-testid="contact-call-btn">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                        {lang === "sw" ? "Piga Simu Hoteli" : "Call Hotel"}
-                      </button>
-                    )
+                    <a href={`tel:${hotel.phone_number}`}
+                      className="flex items-center gap-2 w-full bg-[#1B4332] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#143D28] transition-all justify-center"
+                      data-testid="contact-call-btn">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                      {hotel.phone_number}
+                    </a>
                   )}
-                  {hotel.whatsapp_number && user && (
-                    <a href={`https://wa.me/${(hotel.whatsapp_number || "").replace(/\+/g, '')}`} target="_blank" rel="noopener noreferrer"
+                  {hotel.whatsapp_number && (
+                    <a href={`https://wa.me/${(hotel.whatsapp_number || "").replace(/\+/g, '')}?text=Habari%2C%20nimeona%20hoteli%20yenu%20kwenye%20Habari%20Stays.%20Nataka%20kujua%20upatikanaji%20wa%20chumba.`} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-2 w-full bg-[#25D366] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#20BD5A] transition-all justify-center"
                       data-testid="contact-whatsapp-btn">
                       WhatsApp
@@ -1588,22 +1538,6 @@ const HotelDetailPage = () => {
         </div>
       </div>
       <Footer />
-      {/* Login Required Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowLoginModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4 text-center" onClick={e => e.stopPropagation()} data-testid="detail-login-modal">
-            <div className="w-14 h-14 bg-[#E07B2A]/10 rounded-full flex items-center justify-center mx-auto">
-              <svg className="w-7 h-7 text-[#E07B2A]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-            </div>
-            <h3 className="font-['Outfit'] text-lg font-bold text-[#1A1A1A]">{lang === "sw" ? "Ingia ili kupiga simu hoteli" : "Log in to call hotel"}</h3>
-            <p className="text-sm text-[#1A1A1A]/60">{lang === "sw" ? "Jisajili au ingia ili kupata namba ya simu ya hoteli." : "Register or log in to get the hotel's phone number."}</p>
-            <div className="flex gap-3">
-              <Link to="/register" className="flex-1 py-2.5 bg-[#E07B2A] text-white rounded-lg font-medium text-sm hover:bg-[#C96A1F] text-center">{lang === "sw" ? "Jisajili" : "Register"}</Link>
-              <Link to="/login" className="flex-1 py-2.5 border border-[#1A1A1A]/20 rounded-lg font-medium text-sm hover:bg-[#F4F4F5] text-center">{lang === "sw" ? "Ingia Tayari" : "Log In"}</Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Photo Lightbox */}
       {activePhoto && (

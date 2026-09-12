@@ -24,6 +24,11 @@ import asyncio
 import io
 import json
 import openpyxl
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from database import get_db_session, init_db, close_db, async_session_factory
 from models import (
@@ -36,7 +41,9 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # JWT Settings
-SECRET_KEY = os.environ.get('SECRET_KEY', 'habari-stays-secret-key-change-in-production')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable not set")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
@@ -100,6 +107,18 @@ async def create_default_room_type(session: AsyncSession, hotel_id: str, price: 
 
 
 app = FastAPI(title="Habari Stays API", version="2.1.0")
+
+# Rate limiting (per client IP) - protects auth endpoints from brute-force/spam
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many attempts, try again later."},
+    )
 
 # CORS must be configured early - when allow_credentials=True, cannot use allow_origins=["*"]
 cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000,https://habaristays.com")
@@ -487,28 +506,33 @@ async def log_cashier_activity(
 # ===================== AUTH ENDPOINTS =====================
 
 @api_router.post("/auth/register", response_model=TokenResponse)
-async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db_session)):
+@limiter.limit("3/minute")
+async def register(request: Request, user_data: UserCreate, session: AsyncSession = Depends(get_db_session)):
     existing = await crud.get_user_by_email(session, user_data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email tayari imetumika / Email already exists")
     
+    # Self-registration may only create a traveler or a (pending) owner account.
+    # Any other role (admin, cashier, etc.) must be assigned via an admin-only endpoint.
+    role = user_data.role if user_data.role in ["traveler", "owner"] else "traveler"
+
     user_id = generate_uuid()
-    is_verified = user_data.role not in ["owner"]
-    
+    is_verified = role not in ["owner"]
+
     user = await crud.create_user(session, {
         "id": user_id,
         "email": user_data.email,
         "full_name": user_data.full_name,
         "phone": format_phone(user_data.phone),
-        "role": user_data.role,
+        "role": role,
         "assigned_hotel_id": user_data.assigned_hotel_id,
         "password_hash": get_password_hash(user_data.password),
         "is_active": True,
         "is_verified": is_verified,
         "picture": None,
     })
-    
-    if user_data.role == "owner":
+
+    if role == "owner":
         return TokenResponse(
             access_token="",
             user=UserResponse(
@@ -541,7 +565,8 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
-async def login(credentials: UserLogin, response: Response, session: AsyncSession = Depends(get_db_session)):
+@limiter.limit("5/minute")
+async def login(request: Request, credentials: UserLogin, response: Response, session: AsyncSession = Depends(get_db_session)):
     user = await crud.get_user_by_email(session, credentials.email)
     if not user or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email au neno la siri si sahihi / Invalid credentials")
@@ -716,6 +741,8 @@ async def create_hotel(
 async def get_hotels(
     city: Optional[str] = None,
     search: Optional[str] = None,
+    checkin: Optional[str] = None,
+    checkout: Optional[str] = None,
     session: AsyncSession = Depends(get_db_session)
 ):
     query_params = {}
@@ -723,11 +750,18 @@ async def get_hotels(
         query_params["city"] = city
     if search:
         query_params["search"] = search
-    
+
     # Only show verified/imported hotels to public
     hotels = await crud.get_hotels(session, **query_params, status=None)
     hotels = [h for h in hotels if h.status in ["verified", "imported"]]
-    
+
+    # TODO: there is no per-date availability table yet — RoomType only stores a
+    # static total_rooms/available_rooms count, not date-ranged bookings. Once an
+    # availability table exists, use checkin/checkout here to filter results to
+    # only room_types where available_count > 0 for that date range. For now
+    # checkin/checkout are accepted so the frontend can pass them, but they do
+    # not affect which hotels/rooms are returned (pass-through only).
+
     result = []
     for hotel in hotels:
         rooms = await crud.get_room_types_by_hotel(session, hotel.id)
@@ -863,10 +897,10 @@ async def update_hotel(
     hotel = await crud.get_hotel_by_id(session, hotel_id)
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
-    
-    if current_user["role"] == "owner" and hotel.owner_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Hii si hotel yako")
-    
+
+    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     update_data = hotel_data.model_dump()
     updated_hotel = await crud.update_hotel(session, hotel_id, update_data)
     
@@ -889,12 +923,12 @@ async def patch_hotel(
     hotel = await crud.get_hotel_by_id(session, hotel_id)
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
-    
-    if current_user["role"] == "owner" and hotel.owner_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Hii si hotel yako")
-    
+
+    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     body = await request.json()
-    
+
     allowed_fields = ["name", "description", "address", "city", "phone_number", "whatsapp_number",
                       "amenities", "photos", "cover_photo", "google_maps_url", "status"]
     update_data = {k: v for k, v in body.items() if k in allowed_fields}
@@ -921,10 +955,10 @@ async def create_room_type(
     hotel = await crud.get_hotel_by_id(session, room_data.hotel_id)
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
-    
-    if current_user["role"] == "owner" and hotel.owner_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Hii si hotel yako")
-    
+
+    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     room = await crud.create_room_type(session, {
         "id": generate_uuid(),
         "hotel_id": room_data.hotel_id,
@@ -1032,9 +1066,9 @@ async def patch_room_type(
         raise HTTPException(status_code=404, detail="Room type haipatikani")
     
     hotel = await crud.get_hotel_by_id(session, room.hotel_id)
-    if current_user["role"] == "owner" and hotel.owner_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Hii si hotel yako")
-    
+    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     body = await request.json()
     allowed_fields = ["name", "description", "price_per_night", "capacity", "total_rooms",
                       "available_rooms", "amenities", "photos", "is_default"]
@@ -1064,9 +1098,9 @@ async def update_room_type(
         raise HTTPException(status_code=404, detail="Room type haipatikani")
     
     hotel = await crud.get_hotel_by_id(session, room.hotel_id)
-    if current_user["role"] == "owner" and hotel.owner_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Hii si hotel yako")
-    
+    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     updated = await crud.update_room_type(session, room_id, room_data.model_dump())
     return updated.to_dict()
 
@@ -1082,9 +1116,9 @@ async def delete_room_type(
         raise HTTPException(status_code=404, detail="Room type haipatikani")
     
     hotel = await crud.get_hotel_by_id(session, room.hotel_id)
-    if current_user["role"] == "owner" and hotel.owner_id != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Hii si hotel yako")
-    
+    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     # Check for active bookings
     active = await crud.count_bookings(
         session,
@@ -1201,26 +1235,25 @@ async def confirm_payment(
     booking_id: str,
     payment: PaymentConfirmation,
     background_tasks: BackgroundTasks,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
 ):
     booking = await crud.get_booking_by_id(session, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking haipatikani")
-    
-    if booking.payment_status == "paid":
-        raise HTTPException(status_code=400, detail="Booking tayari imelipwa")
-    
-    await crud.update_booking(session, booking_id, {
-        "payment_status": "paid",
-        "payment_reference": payment.payment_reference,
-        "status": "confirmed"
-    })
-    
+
     hotel = await crud.get_hotel_by_id(session, booking.hotel_id)
-    sms_msg = f"HABARI STAYS: Asante! Booking yako imethibitishwa. Hotel: {hotel.name}, Ref: {booking.booking_ref}. Karibu sana!"
-    background_tasks.add_task(send_sms, booking.guest_phone, sms_msg)
-    
-    return {"message": "Malipo yamethibitishwa", "status": "confirmed"}
+    is_hotel_owner = bool(hotel) and current_user["role"] == "owner" and hotel.owner_id == current_user["id"]
+    is_booking_guest = (
+        current_user["id"] == booking.created_by
+        or (current_user.get("phone") and current_user.get("phone") == booking.guest_phone)
+    )
+    if not (current_user["role"] == "admin" or is_hotel_owner or is_booking_guest):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
+    # No real payment gateway (M-Pesa/Selcom) is wired up yet — a client-supplied
+    # payment_reference cannot be trusted to actually confirm payment.
+    raise HTTPException(status_code=501, detail="Payment gateway not configured")
 
 @api_router.get("/bookings")
 async def get_bookings(
@@ -1296,15 +1329,32 @@ async def get_recent_bookings(
     return [b.to_dict() for b in bookings]
 
 @api_router.get("/bookings/{booking_id}")
-async def get_booking(booking_id: str, session: AsyncSession = Depends(get_db_session)):
+async def get_booking(
+    booking_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
     booking = await crud.get_booking_by_id(session, booking_id)
     if not booking:
         booking = await crud.get_booking_by_ref(session, booking_id)
-    
+
     if not booking:
         raise HTTPException(status_code=404, detail="Booking haipatikani")
-    
+
     hotel = await crud.get_hotel_by_id(session, booking.hotel_id)
+
+    is_staff_for_hotel = (
+        current_user["role"] == "admin"
+        or (current_user["role"] == "owner" and hotel and hotel.owner_id == current_user["id"])
+        or (current_user["role"] == "cashier" and current_user.get("assigned_hotel_id") == booking.hotel_id)
+    )
+    is_booking_guest = (
+        current_user["id"] == booking.created_by
+        or (current_user.get("phone") and current_user.get("phone") == booking.guest_phone)
+    )
+    if not (is_staff_for_hotel or is_booking_guest):
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     room_type = await crud.get_room_type_by_id(session, booking.room_type_id) if booking.room_type_id else None
     creator = await crud.get_user_by_id(session, booking.created_by) if booking.created_by else None
     

@@ -1058,62 +1058,6 @@ const AdminUsers = () => {
 };
 
 // ================== ADMIN IMPORT ==================
-      {perfModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="perf-modal">
-            <div className="p-5 border-b border-border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setPerfModal(null)} className="p-1.5 hover:bg-[#F4F4F5] rounded-lg" data-testid="perf-back-btn">
-                  <ChevronLeft className="w-5 h-5 text-[#52525B]" />
-                </button>
-                <div>
-                  <h2 className="font-['Outfit'] text-lg font-bold">{perfModal.cashier?.full_name}</h2>
-                  <p className="text-xs text-[#A1A1AA]">{perfModal.cashier?.email} | {perfModal.cashier?.assigned_hotel_name}</p>
-                </div>
-              </div>
-              <button onClick={() => setPerfModal(null)} className="p-1 hover:bg-[#F4F4F5] rounded-lg"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-4 gap-3">
-                <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-600">{translate("Walk-ins", "Walk-ins")}</p><p className="text-xl font-bold text-green-700">{perfModal.this_month?.walkins_recorded}</p></div>
-                <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-600">{translate("Check-ins", "Check-ins")}</p><p className="text-xl font-bold text-blue-700">{perfModal.this_month?.checkins_confirmed}</p></div>
-                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">{translate("Checkouts", "Checkouts")}</p><p className="text-xl font-bold text-gray-700">{perfModal.this_month?.checkouts_processed}</p></div>
-                <div className="bg-[#0F4C5C]/10 rounded-lg p-3"><p className="text-xs text-[#0F4C5C]">{translate("Revenue", "Mapato")}</p><p className="text-xl font-bold text-[#0F4C5C]">TZS {(perfModal.this_month?.total_revenue || 0).toLocaleString()}</p></div>
-              </div>
-              <div className="bg-white rounded-xl border border-border overflow-hidden">
-                <div className="px-4 py-3 border-b border-border"><h3 className="text-sm font-semibold">{translate("Activity (This Month)", "Shughuli (Mwezi Huu)")}</h3></div>
-                {perfModal.activity_log?.length > 0 ? (
-                  <table className="w-full">
-                    <thead className="bg-[#F4F4F5]"><tr>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Date", "Tarehe")}</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Action", "Kitendo")}</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Guest", "Mgeni")}</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Room", "Chumba")}</th>
-                      <th className="text-left px-3 py-2 text-[10px] font-medium text-[#52525B]">{translate("Amount", "Kiasi")}</th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-border">
-                      {perfModal.activity_log.slice(0, 50).map(l => (
-                        <tr key={l.id}>
-                          <td className="px-3 py-2 text-[10px] text-[#52525B]">{l.timestamp ? new Date(l.timestamp).toLocaleDateString() : ""}</td>
-                          <td className="px-3 py-2 text-[10px]">{l.action_type?.replace("_", " ")}</td>
-                          <td className="px-3 py-2 text-[10px]">{l.guest_name}</td>
-                          <td className="px-3 py-2 text-[10px]">{l.room_type_name}</td>
-                          <td className="px-3 py-2 text-[10px] font-medium">{l.amount_tzs ? `TZS ${l.amount_tzs.toLocaleString()}` : "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : <div className="p-6 text-center text-sm text-[#A1A1AA]">{translate("No activity this month", "Hakuna shughuli mwezi huu")}</div>}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ================== ADMIN IMPORT ==================
 const AdminImport = () => {
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
