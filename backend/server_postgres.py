@@ -37,6 +37,7 @@ from models import (
     CashierAssignment, CashierActivityLog, ImportBatch, ImportPreview, generate_uuid
 )
 import crud
+from routers.analytics import create_router as create_analytics_router, record_event
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1594,6 +1595,8 @@ async def report_hotel(
         "note": report_data.note or "",
     })
 
+    await record_event(session, "report_submitted", hotel_id=hotel_id, city=hotel.city,
+                       metadata={"report_id": report.id, "field_reported": report_data.field_reported})
     return {"message": "Asante! Ripoti yako imepokelewa.", "id": report.id}
 
 # ===================== BACKOFFICE ENDPOINTS =====================
@@ -3589,6 +3592,7 @@ async def health_check():
     return {"status": "ok"}
 
 # Include router
+api_router.include_router(create_analytics_router(get_current_user, limiter))
 app.include_router(api_router)
 
 logging.basicConfig(

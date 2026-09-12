@@ -4,10 +4,11 @@ import { toast } from "sonner";
 import { api, LoadingSpinner, useAuth, LanguageToggle, useLang } from "../App";
 import PhotoManager, { getPhotoUrl, getCoverUrl } from "../components/PhotoManager";
 import HotelEditPage from "../components/HotelEditPage";
+import AdminAnalytics from "./AdminAnalytics";
 import {
   LayoutDashboard, Building2, Users, LogOut, Upload, UserCheck,
   Check, X, AlertTriangle, Search, Phone, Mail, Image, ChevronLeft,
-  Camera, Plus, Pencil, Trash2, Flag
+  Camera, Plus, Pencil, Trash2, Flag, BarChart3
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -25,6 +26,7 @@ const AdminDashboard = () => {
 
   const navItems = [
     { path: "/admin", icon: LayoutDashboard, label: translate("Dashboard", "Dashibodi"), exact: true },
+    { path: "/admin/analytics", icon: BarChart3, label: "Analytics" },
     { path: "/admin/hotels", icon: Building2, label: translate("Hotels", "Hoteli") },
     { path: "/admin/owners", icon: UserCheck, label: translate("Owners", "Wamiliki") },
     { path: "/admin/reports", icon: Flag, label: translate("Reports", "Ripoti") },
@@ -72,9 +74,10 @@ const AdminDashboard = () => {
           </button>
         </div>
       </aside>
-      <main className="flex-1 ml-64 p-6">
+      <main className="flex-1 min-w-0 ml-64 p-6">
         <Routes>
           <Route path="/" element={<AdminHome />} />
+          <Route path="/analytics" element={<AdminAnalytics />} />
           <Route path="/hotels" element={<AdminHotels />} />
           <Route path="/hotels/:hotelId" element={<HotelEditPage basePath="/admin" />} />
           <Route path="/hotels/:hotelId/photos" element={<AdminHotelPhotos />} />

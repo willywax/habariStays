@@ -4,7 +4,7 @@ require("dotenv").config();
 
 // Check if we're in development/preview mode (not production build)
 // Craco sets NODE_ENV=development for start, NODE_ENV=production for build
-const isDevServer = process.env.NODE_ENV !== "production";
+const isDevServer = process.env.NODE_ENV === "development";
 
 // Environment variable overrides
 const config = {
@@ -33,6 +33,11 @@ if (config.enableHealthCheck) {
 }
 
 const webpackConfig = {
+  jest: {
+    configure: {
+      moduleNameMapper: { "^@/(.*)$": "<rootDir>/src/$1" },
+    },
+  },
   eslint: {
     configure: {
       extends: ["plugin:react-hooks/recommended"],

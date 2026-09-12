@@ -10,6 +10,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 import uuid
 import enum
@@ -27,6 +28,34 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     CASHIER = "cashier"
     BACKOFFICE = "backoffice"
+
+
+class AnalyticsEventType(str, enum.Enum):
+    HOTEL_SEARCH = "hotel_search"
+    HOTEL_VIEW = "hotel_view"
+    WHATSAPP_CLICK = "whatsapp_click"
+    PHONE_REVEALED = "phone_revealed"
+    ZERO_RESULTS = "zero_results"
+    REPORT_SUBMITTED = "report_submitted"
+
+
+class AnalyticsEvent(Base):
+    __tablename__ = "analytics_events"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    event_type = Column(SQLEnum(
+        AnalyticsEventType, name="analytics_event_type",
+        values_callable=lambda values: [item.value for item in values],
+    ), nullable=False, index=True)
+    hotel_id = Column(String(36), ForeignKey("hotels.id", ondelete="SET NULL"), nullable=True, index=True)
+    city = Column(String(100), nullable=True, index=True)
+    session_id = Column(String(255), nullable=True)
+    budget_min = Column(Integer, nullable=True)
+    budget_max = Column(Integer, nullable=True)
+    results_count = Column(Integer, nullable=True)
+    # `metadata` is reserved by SQLAlchemy's declarative API.
+    event_metadata = Column("metadata", JSONB, nullable=False, default=dict, server_default="{}")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
 
 
 class CallStatus(str, enum.Enum):

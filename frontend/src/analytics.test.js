@@ -67,3 +67,96 @@ test("sends exactly one named event per business action with custom fields", () 
     });
   });
 });
+
+
+describe("backend business events", () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    sessionStorage.clear();
+    process.env.REACT_APP_API_URL = "https://analytics.example.test/";
+    process.env.REACT_APP_BACKEND_URL = "https://api.example.test";
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 201 });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  test("posts full business fields and reuses a tab session independently of GA4", async () => {
+    const { analytics, ga } = loadAnalytics("development", "");
+    await analytics.sendBackendEvent("hotel_search", {
+      city: "Arusha", budget_min: 0, budget_max: 60000, results_count: 0,
+    });
+    await analytics.sendBackendEvent("hotel_view", { hotel_id: "hotel-1", city: "Arusha" });
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toBe("https://analytics.example.test/api/analytics/event");
+    expect(options).toMatchObject({ method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true });
+    const first = JSON.parse(options.body);
+    expect(first).toEqual({ event_type: "hotel_search", session_id: expect.any(String), city: "Arusha", budget_min: 0, budget_max: 60000, results_count: 0 });
+    expect(first.session_id).toBeTruthy();
+    expect(first.session_id).toBe(sessionStorage.getItem("hs_session"));
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toEqual({
+      event_type: "hotel_view", hotel_id: "hotel-1", city: "Arusha", session_id: first.session_id,
+    });
+    expect(ga.event).not.toHaveBeenCalled();
+  });
+
+  test("uses the existing backend URL when the analytics override is empty", async () => {
+    process.env.REACT_APP_API_URL = "";
+    const { analytics } = loadAnalytics("production", "");
+    await analytics.sendBackendEvent("zero_results", { city: "", budget_min: undefined, budget_max: undefined });
+    expect(global.fetch.mock.calls[0][0]).toBe("https://api.example.test/api/analytics/event");
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({
+      event_type: "zero_results", session_id: expect.any(String),
+    });
+  });
+
+  test("does not send to an undefined host when neither URL is configured", async () => {
+    delete process.env.REACT_APP_API_URL;
+    delete process.env.REACT_APP_BACKEND_URL;
+    const { analytics } = loadAnalytics("production", "");
+    await analytics.sendBackendEvent("hotel_view");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test.each(["whatsapp_click", "phone_revealed"])("sends %s with hotel identity", async (event_type) => {
+    const { analytics } = loadAnalytics("production", "G-TEST123");
+    await analytics.sendBackendEvent(event_type, { hotel_id: "hotel-1", city: "Moshi" });
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toMatchObject({ event_type, hotel_id: "hotel-1", city: "Moshi" });
+  });
+
+  test("silently handles rejected requests and HTTP rate limits", async () => {
+    const { analytics } = loadAnalytics("production", "");
+    global.fetch.mockRejectedValueOnce(new Error("Offline")).mockResolvedValueOnce({ ok: false, status: 429 });
+    await expect(analytics.sendBackendEvent("hotel_view")).resolves.toBeUndefined();
+    await expect(analytics.sendBackendEvent("hotel_view")).resolves.toBeUndefined();
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("silently handles denied storage and serialization failures", async () => {
+    const { analytics } = loadAnalytics("production", "");
+    const storage = jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("Storage blocked"); });
+    await expect(analytics.sendBackendEvent("hotel_view")).resolves.toBeUndefined();
+    storage.mockRestore();
+    const circular = {};
+    circular.self = circular;
+    await expect(analytics.sendBackendEvent("hotel_view", { metadata: circular })).resolves.toBeUndefined();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test("returns immediately and still posts if the GA4 companion throws", async () => {
+    const { analytics, ga } = loadAnalytics("production", "G-TEST123");
+    ga.event.mockImplementationOnce(() => { throw new Error("GA unavailable"); });
+    global.fetch.mockReturnValueOnce(new Promise(() => {}));
+    const navigate = jest.fn();
+    expect(() => {
+      analytics.trackWhatsApp("hotel-1", "Hotel", "Arusha");
+      void analytics.sendBackendEvent("whatsapp_click", { hotel_id: "hotel-1", city: "Arusha" });
+      navigate();
+    }).not.toThrow();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
+});

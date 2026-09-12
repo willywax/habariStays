@@ -95,3 +95,37 @@ https://github.com/codler/react-ga4#reactgaeventname-params
 Register custom dimensions/metrics in GA4 for the business parameters you want to
 report on. Verify page views and business events in Realtime after deploying with
 a real measurement ID. No separate `session_start` event is sent by the app.
+
+## Backend business events
+
+Searches, zero results, loaded hotel details, WhatsApp clicks, and phone clicks send
+both the existing GA4 event and a fire-and-forget POST to `/api/analytics/event`.
+The sender uses `REACT_APP_API_URL`, falling back to the app's existing
+`REACT_APP_BACKEND_URL`. Supply an origin without `/api`; Docker accepts either
+build argument. The existing Cloud Build backend URL works without another setting.
+Rebuild after changing environment variables.
+
+Backend events run independently of the GA4 measurement ID, including development
+when an API URL is configured. A tab session ID is stored under `hs_session` in
+sessionStorage. Empty city selections and unrestricted budget bounds are omitted;
+zero-valued budgets and result counts are preserved. Fetch uses `keepalive` for
+contact links that leave the page. Storage/network failures and HTTP errors are
+silent, with no retries and no UI waiting on analytics.
+
+Deploy the backend analytics migration/router before checking event persistence.
+Report submissions are already recorded server-side and are not duplicated here.
+
+## Admin analytics
+
+`/admin/analytics` is available from the admin sidebar. Overview, Hotels, and Calls
+share the 7/14/30/90-day selector (default 30). All three endpoints refetch on a
+period change and every five minutes. Background failures retain existing data and
+show a retry message; stale requests are cancelled when the period changes or the
+page unmounts. Charts use Recharts, and sortable tables show 20 rows per page.
+
+The page requires the analytics API's `hotels_listed`, most-viewed
+`phone_reveals`, caller `last_active`, and `pipeline_counts` fields. These are
+included in the companion backend changes. Inventory/pipeline figures are current
+snapshots; activity metrics use the selected UTC period. Scrape links point to
+`https://pipeline.habaristays.com/scrape?town=...`. Hotel rows open the existing
+admin hotel editor in a new tab.
