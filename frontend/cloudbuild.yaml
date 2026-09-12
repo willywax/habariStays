@@ -8,6 +8,8 @@ steps:
       - 'REACT_APP_BACKEND_URL=${_BACKEND_URL}'
       - '--build-arg'
       - 'REACT_APP_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}'
+      - '--build-arg'
+      - 'REACT_APP_GA_MEASUREMENT_ID=${_GA_MEASUREMENT_ID}'
       - '.'
 
 images:
@@ -16,3 +18,4 @@ images:
 substitutions:
   _BACKEND_URL: 'https://api.habaristays.com'
   _GOOGLE_CLIENT_ID: '883901859223-m866hedfbdshplud3ffd9vdjtccn3ice.apps.googleusercontent.com'
+  _GA_MEASUREMENT_ID: ''

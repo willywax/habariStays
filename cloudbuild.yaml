@@ -6,7 +6,12 @@ substitutions:
   _BACKEND_SERVICE: 'habari-stays-api'
   _FRONTEND_SERVICE: 'habari-stays-web'
   _GOOGLE_CLIENT_ID: '883901859223-m866hedfbdshplud3ffd9vdjtccn3ice.apps.googleusercontent.com'
-  _SECRET_KEY: 'habari-stays-secret-key-change-in-production'
+  _GA_MEASUREMENT_ID: ''
+  # _SECRET_KEY has NO default on purpose - it must be passed explicitly via
+  # --substitutions=_SECRET_KEY=... at submit time (e.g. from Secret Manager
+  # or your shell env), so a bare `gcloud builds submit` can never silently
+  # redeploy a known/weak JWT signing key. The backend also fails to start
+  # if SECRET_KEY ends up unset, so a missing substitution fails loudly.
   _BEEM_API_KEY: 'edb1c303e756f90f'
   _BEEM_SECRET_KEY: 'NTVlZDRkZWU4NGU2NWY2ODQwNzc0MGYxOTUwZDkwMGYyYzRhOWQ5ZjdjODRjYjg5MDU0YzRlMTI3YWFmMzVmMQ=='
   _BEEM_SENDER_ID: 'HABARISTAYS'
@@ -31,6 +36,8 @@ steps:
       - 'REACT_APP_BACKEND_URL=https://api.habaristays.com'
       - '--build-arg'
       - 'REACT_APP_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}'
+      - '--build-arg'
+      - 'REACT_APP_GA_MEASUREMENT_ID=${_GA_MEASUREMENT_ID}'
       - './frontend'
     id: 'build-frontend'
     waitFor: ['-']  # Run in parallel with backend build
