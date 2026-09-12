@@ -12,7 +12,7 @@ import uuid
 
 from models import (
     User, UserSession, Hotel, RoomType, Booking, Review,
-    CashierAssignment, CashierActivityLog, ImportBatch, HotelReport
+    CashierAssignment, CashierActivityLog, ImportBatch, HotelReport, HotelCallLog
 )
 
 
@@ -63,6 +63,26 @@ async def get_users_by_role(session: AsyncSession, role: str, hotel_ids: List[st
     query = select(User).where(User.role == role)
     if hotel_ids:
         query = query.where(User.assigned_hotel_id.in_(hotel_ids))
+    result = await session.execute(query)
+    return list(result.scalars().all())
+
+
+async def get_users_filtered(session: AsyncSession, role: str = None, search: str = None) -> List[User]:
+    query = select(User)
+    conditions = []
+    if role:
+        conditions.append(User.role == role)
+    if search:
+        conditions.append(
+            or_(
+                User.full_name.ilike(f"%{search}%"),
+                User.email.ilike(f"%{search}%"),
+                User.phone.ilike(f"%{search}%"),
+            )
+        )
+    if conditions:
+        query = query.where(and_(*conditions))
+    query = query.order_by(desc(User.created_at))
     result = await session.execute(query)
     return list(result.scalars().all())
 
@@ -162,6 +182,9 @@ async def create_hotel(session: AsyncSession, hotel_data: dict) -> Hotel:
 
 
 async def update_hotel(session: AsyncSession, hotel_id: str, update_data: dict) -> Optional[Hotel]:
+    # Bulk UPDATE statements bypass the ORM's onupdate= hooks, so every caller
+    # (admin, owner, backoffice) gets updated_at bumped here instead.
+    update_data = {**update_data, "updated_at": datetime.now(timezone.utc)}
     await session.execute(
         update(Hotel).where(Hotel.id == hotel_id).values(**update_data)
     )
@@ -255,6 +278,61 @@ async def get_hotel_by_id_with_relations(session: AsyncSession, hotel_id: str) -
         .options(joinedload(Hotel.room_types), selectinload(Hotel.reviews))
     )
     return result.unique().scalar_one_or_none()
+
+
+async def get_backoffice_hotels(
+    session: AsyncSession,
+    city: str = None,
+    call_status: str = None,
+    search: str = None,
+    page: int = 1,
+    page_size: int = 20
+):
+    """Paginated hotel list for the backoffice calling queue."""
+    conditions = []
+    if city:
+        conditions.append(func.lower(Hotel.city) == func.lower(city))
+    if call_status:
+        conditions.append(Hotel.call_status == call_status)
+    if search:
+        conditions.append(Hotel.name.ilike(f"%{search}%"))
+
+    base_query = select(Hotel)
+    count_query = select(func.count(Hotel.id))
+    if conditions:
+        base_query = base_query.where(and_(*conditions))
+        count_query = count_query.where(and_(*conditions))
+
+    total = (await session.execute(count_query)).scalar_one()
+
+    query = base_query.order_by(desc(Hotel.created_at)).limit(page_size).offset((page - 1) * page_size)
+    result = await session.execute(query)
+    hotels = list(result.scalars().all())
+
+    return hotels, total
+
+
+async def get_backoffice_stats(session: AsyncSession) -> Dict:
+    total = (await session.execute(select(func.count(Hotel.id)))).scalar_one()
+
+    by_status = await session.execute(
+        select(Hotel.call_status, func.count(Hotel.id)).group_by(Hotel.call_status)
+    )
+    counts = {row[0] or "pending": row[1] for row in by_status.all()}
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    called_today = (await session.execute(
+        select(func.count(func.distinct(HotelCallLog.hotel_id)))
+        .where(HotelCallLog.called_at >= today_start)
+    )).scalar_one()
+
+    return {
+        "total_hotels": total,
+        "pending": counts.get("pending", 0),
+        "called_today": called_today,
+        "verified": counts.get("verified", 0),
+        "unreachable": counts.get("unreachable", 0),
+    }
 
 
 async def get_hotels_by_owner(session: AsyncSession, owner_id: str) -> List[Hotel]:
@@ -652,6 +730,54 @@ async def resolve_hotel_report(session: AsyncSession, report_id: str) -> Optiona
     )
     await session.flush()
     return await get_hotel_report_by_id(session, report_id)
+
+
+# ===================== HOTEL CALL LOG OPERATIONS (backoffice) =====================
+
+async def create_hotel_call_log(session: AsyncSession, log_data: dict) -> HotelCallLog:
+    log = HotelCallLog(**log_data)
+    session.add(log)
+    await session.flush()
+    return log
+
+
+async def get_latest_call_notes_by_hotel(session: AsyncSession, hotel_ids: List[str]) -> Dict[str, str]:
+    """One query for a whole page of hotels - the most recent call_notes per
+    hotel_id, instead of a query per hotel."""
+    if not hotel_ids:
+        return {}
+    ranked = (
+        select(
+            HotelCallLog.hotel_id,
+            HotelCallLog.call_notes,
+            func.row_number().over(
+                partition_by=HotelCallLog.hotel_id,
+                order_by=desc(HotelCallLog.called_at)
+            ).label("rn")
+        )
+        .where(HotelCallLog.hotel_id.in_(hotel_ids))
+        .subquery()
+    )
+    result = await session.execute(
+        select(ranked.c.hotel_id, ranked.c.call_notes).where(ranked.c.rn == 1)
+    )
+    return {row[0]: row[1] for row in result.all()}
+
+
+async def get_call_logs_by_hotel(session: AsyncSession, hotel_id: str) -> List[Dict]:
+    """Call history for one hotel, newest first, with the caller's name joined in."""
+    result = await session.execute(
+        select(HotelCallLog, User.full_name)
+        .outerjoin(User, HotelCallLog.backoffice_user_id == User.id)
+        .where(HotelCallLog.hotel_id == hotel_id)
+        .order_by(desc(HotelCallLog.called_at))
+    )
+    logs = []
+    for log, caller_name in result.all():
+        data = log.to_dict()
+        data["backoffice_user_name"] = caller_name
+        logs.append(data)
+    return logs
 
 
 # ===================== CASHIER ASSIGNMENT OPERATIONS =====================

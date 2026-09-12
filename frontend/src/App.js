@@ -478,7 +478,7 @@ const Navbar = ({ transparent = false }) => {
             {user ? (
               <>
                 <Link 
-                  to={user.role === "admin" ? "/admin" : user.role === "owner" ? "/owner" : user.role === "cashier" ? "/cashier" : "/"}
+                  to={user.role === "admin" ? "/admin" : user.role === "owner" ? "/owner" : user.role === "cashier" ? "/cashier" : user.role === "backoffice" ? "/backoffice" : "/"}
                   className={`${textColor} hover:text-[#E07B2A] transition-colors font-medium`}
                   data-testid="dashboard-link"
                 >
@@ -546,7 +546,7 @@ const Navbar = ({ transparent = false }) => {
             {user ? (
               <>
                 <Link 
-                  to={user.role === "admin" ? "/admin" : user.role === "owner" ? "/owner" : user.role === "cashier" ? "/cashier" : "/"}
+                  to={user.role === "admin" ? "/admin" : user.role === "owner" ? "/owner" : user.role === "cashier" ? "/cashier" : user.role === "backoffice" ? "/backoffice" : "/"}
                   onClick={closeMobile}
                   className="block px-4 py-3 text-[#1A1A1A] hover:bg-[#F4F4F5] rounded-lg font-medium"
                 >
@@ -1677,6 +1677,7 @@ const HotelDetailPage = () => {
 const OwnerDashboard = React.lazy(() => import("./pages/OwnerDashboard"));
 const CashierDashboard = React.lazy(() => import("./pages/CashierDashboard"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
+const BackofficeDashboard = React.lazy(() => import("./pages/BackofficeDashboard"));
 const BookingFlow = React.lazy(() => import("./pages/BookingFlow"));
 const LoginPage = React.lazy(() => import("./pages/AuthPages").then(m => ({ default: m.LoginPage })));
 const RegisterPage = React.lazy(() => import("./pages/AuthPages").then(m => ({ default: m.RegisterPage })));
@@ -1726,6 +1727,18 @@ function AppRouter() {
           <ProtectedRoute roles={["admin"]}>
             <React.Suspense fallback={<LoadingSpinner />}>
               <AdminDashboard />
+            </React.Suspense>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Backoffice Routes */}
+      <Route
+        path="/backoffice/*"
+        element={
+          <ProtectedRoute roles={["backoffice"]}>
+            <React.Suspense fallback={<LoadingSpinner />}>
+              <BackofficeDashboard />
             </React.Suspense>
           </ProtectedRoute>
         }

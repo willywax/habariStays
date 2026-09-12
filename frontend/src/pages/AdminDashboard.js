@@ -953,7 +953,8 @@ const AdminUsers = () => {
       traveler: translate("Customer", "Mteja"),
       owner: translate("Owner", "Mmiliki"),
       cashier: translate("Cashier", "Mweka Hazina"),
-      admin: translate("Admin", "Msimamizi")
+      admin: translate("Admin", "Msimamizi"),
+      backoffice: translate("Backoffice", "Ofisi ya Nyuma")
     };
     return map[role] || role;
   };
@@ -1047,6 +1048,7 @@ const AdminUsers = () => {
           <option value="owner">{translate("Owners", "Wamiliki")}</option>
           <option value="cashier">{translate("Cashiers", "Weka Hazina")}</option>
           <option value="admin">{translate("Admins", "Wasimamizi")}</option>
+          <option value="backoffice">{translate("Backoffice", "Ofisi ya Nyuma")}</option>
         </select>
       </div>
 
@@ -1120,6 +1122,7 @@ const AdminUsers = () => {
                     <option value="owner">{translate("Owner", "Mmiliki")}</option>
                     <option value="cashier">{translate("Cashier", "Mweka Hazina")}</option>
                     <option value="admin">{translate("Admin", "Msimamizi")}</option>
+                    <option value="backoffice">{translate("Backoffice", "Ofisi ya Nyuma")}</option>
                   </select>
                 </div>
               </div>

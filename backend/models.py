@@ -26,6 +26,14 @@ class UserRole(str, enum.Enum):
     OWNER = "owner"
     ADMIN = "admin"
     CASHIER = "cashier"
+    BACKOFFICE = "backoffice"
+
+
+class CallStatus(str, enum.Enum):
+    PENDING = "pending"
+    CALLED = "called"
+    VERIFIED = "verified"
+    UNREACHABLE = "unreachable"
 
 
 class HotelStatus(str, enum.Enum):
@@ -166,7 +174,9 @@ class Hotel(Base):
     status = Column(String(20), default="pending", index=True)
     data_source = Column(String(50), default="manual")
     import_batch_id = Column(String(36), ForeignKey("import_batches.id", ondelete="SET NULL"), nullable=True)
+    call_status = Column(String(20), default="pending", index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     owner = relationship("User", foreign_keys=[owner_id], back_populates="owned_hotels")
@@ -203,7 +213,9 @@ class Hotel(Base):
             "status": self.status,
             "data_source": self.data_source,
             "import_batch_id": self.import_batch_id,
+            "call_status": self.call_status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -365,6 +377,36 @@ class HotelReport(Base):
             "field_reported": self.field_reported,
             "note": self.note,
             "resolved": self.resolved,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class HotelCallLog(Base):
+    """A record of one backoffice staff member's phone call to a hotel,
+    verifying/updating its details. hotels.call_status always reflects the
+    most recent entry here; this table is the full history."""
+    __tablename__ = "hotel_call_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    hotel_id = Column(String(36), ForeignKey("hotels.id", ondelete="CASCADE"), nullable=False, index=True)
+    backoffice_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    call_status = Column(String(20), nullable=False)
+    call_notes = Column(Text, default="")
+    called_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relationships
+    hotel = relationship("Hotel")
+    backoffice_user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "hotel_id": self.hotel_id,
+            "backoffice_user_id": self.backoffice_user_id,
+            "call_status": self.call_status,
+            "call_notes": self.call_notes,
+            "called_at": self.called_at.isoformat() if self.called_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

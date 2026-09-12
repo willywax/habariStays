@@ -75,6 +75,12 @@ _hotels_list_cache = TTLCache(maxsize=256, ttl=60)
 _hotel_detail_cache = TTLCache(maxsize=512, ttl=60)
 _cities_cache = TTLCache(maxsize=4, ttl=60)
 
+def invalidate_hotel_cache(hotel_id: str):
+    """Call after any write to a hotel's data so editors (owner/admin/backoffice)
+    see their own change immediately instead of a stale cached response."""
+    _hotel_detail_cache.pop(hotel_id, None)
+    _hotels_list_cache.clear()
+
 # Hotel-level and Room-level amenity constants
 HOTEL_AMENITIES = ["Breakfast", "Parking", "WiFi", "Hot Water", "Bar"]
 ROOM_AMENITIES = ["A/C", "Western Toilet", "Squat Toilet", "En-suite Bathroom", "Balcony", "TV", "Safe", "Mini Fridge", "Hot Shower"]
@@ -302,6 +308,35 @@ class HotelReportCreate(BaseModel):
     def validate_field_reported(cls, v):
         if v not in REPORT_FIELDS:
             raise ValueError(f"field_reported must be one of {REPORT_FIELDS}")
+        return v
+
+CALL_STATUSES = ["pending", "called", "verified", "unreachable"]
+
+class HotelCallLogCreate(BaseModel):
+    call_status: str
+    call_notes: Optional[str] = None
+    called_at: Optional[str] = None
+
+    @field_validator("call_status")
+    @classmethod
+    def validate_call_status(cls, v):
+        if v not in CALL_STATUSES:
+            raise ValueError(f"call_status must be one of {CALL_STATUSES}")
+        return v
+
+class AdminUserCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    phone: str
+    role: str
+    assigned_hotel_id: Optional[str] = None
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v):
+        allowed = ["traveler", "owner", "cashier", "admin", "backoffice"]
+        if v not in allowed:
+            raise ValueError(f"role must be one of {allowed}")
         return v
 
 class CashierCreate(BaseModel):
@@ -934,11 +969,12 @@ async def update_hotel(
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
 
-    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+    if not (current_user["role"] in ["admin", "backoffice"] or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
 
     update_data = hotel_data.model_dump()
     updated_hotel = await crud.update_hotel(session, hotel_id, update_data)
+    invalidate_hotel_cache(hotel_id)
     
     rooms = await crud.get_room_types_by_hotel(session, hotel_id)
     reviews = await crud.get_reviews_by_hotel(session, hotel_id)
@@ -960,7 +996,7 @@ async def patch_hotel(
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
 
-    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+    if not (current_user["role"] in ["admin", "backoffice"] or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
 
     body = await request.json()
@@ -978,6 +1014,7 @@ async def patch_hotel(
         update_data["cover_photo"] = get_cover_url(update_data["photos"], "cloudinary_web")
 
     updated = await crud.update_hotel(session, hotel_id, update_data)
+    invalidate_hotel_cache(hotel_id)
     return updated.to_dict()
 
 # ===================== ROOM TYPE ENDPOINTS =====================
@@ -993,7 +1030,7 @@ async def create_room_type(
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
 
-    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+    if not (current_user["role"] in ["admin", "backoffice"] or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
 
     room = await crud.create_room_type(session, {
@@ -1009,7 +1046,8 @@ async def create_room_type(
         "photos": room_data.photos,
         "is_default": False,
     })
-    
+    invalidate_hotel_cache(room_data.hotel_id)
+
     return room.to_dict()
 
 @api_router.post("/hotels/{hotel_id}/room-types")
@@ -1057,7 +1095,7 @@ async def patch_room_type(
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
     
-    if current_user["role"] != "admin" and hotel.owner_id != current_user["id"]:
+    if current_user["role"] not in ["admin", "backoffice"] and hotel.owner_id != current_user["id"]:
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
     
     body = await request.json()
@@ -1089,6 +1127,7 @@ async def patch_room_type(
         update["is_default"] = False
     
     await crud.update_room_type(session, room_id, update)
+    invalidate_hotel_cache(room.hotel_id)
     updated = await crud.get_room_type_by_id(session, room_id)
     return updated.to_dict()
 @api_router.patch("/rooms/{room_id}")
@@ -1103,7 +1142,7 @@ async def patch_room_type(
         raise HTTPException(status_code=404, detail="Room type haipatikani")
     
     hotel = await crud.get_hotel_by_id(session, room.hotel_id)
-    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+    if not (current_user["role"] in ["admin", "backoffice"] or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
 
     body = await request.json()
@@ -1115,6 +1154,7 @@ async def patch_room_type(
         raise HTTPException(status_code=400, detail="Hakuna mabadiliko")
     
     updated = await crud.update_room_type(session, room_id, update_data)
+    invalidate_hotel_cache(hotel.id)
     return updated.to_dict()
 
 @api_router.get("/hotels/{hotel_id}/rooms")
@@ -1135,10 +1175,11 @@ async def update_room_type(
         raise HTTPException(status_code=404, detail="Room type haipatikani")
     
     hotel = await crud.get_hotel_by_id(session, room.hotel_id)
-    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+    if not (current_user["role"] in ["admin", "backoffice"] or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
 
     updated = await crud.update_room_type(session, room_id, room_data.model_dump())
+    invalidate_hotel_cache(hotel.id)
     return updated.to_dict()
 
 @api_router.delete("/rooms/{room_id}")
@@ -1153,7 +1194,7 @@ async def delete_room_type(
         raise HTTPException(status_code=404, detail="Room type haipatikani")
     
     hotel = await crud.get_hotel_by_id(session, room.hotel_id)
-    if not (current_user["role"] == "admin" or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
+    if not (current_user["role"] in ["admin", "backoffice"] or (current_user["role"] == "owner" and hotel.owner_id == current_user["id"])):
         raise HTTPException(status_code=403, detail="Hauruhusiwi")
 
     # Check for active bookings
@@ -1167,6 +1208,7 @@ async def delete_room_type(
         raise HTTPException(status_code=400, detail="Room type ina bukini hai, haiwezi kufutwa")
     
     await crud.delete_room_type(session, room_id)
+    invalidate_hotel_cache(hotel.id)
     return {"message": "Room type imefutwa"}
 
 # ===================== BOOKING ENDPOINTS =====================
@@ -1298,6 +1340,10 @@ async def get_bookings(
     session: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(get_current_user)
 ):
+    if current_user["role"] == "backoffice":
+        # Backoffice manages hotel data only - no bookings/financial visibility
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     if current_user["role"] == "traveler":
         # Travelers see their own bookings
         bookings = await crud.get_bookings(session, guest_phone=current_user.get("phone"))
@@ -1356,13 +1402,16 @@ async def get_recent_bookings(
     session: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(get_current_user)
 ):
+    if current_user["role"] == "backoffice":
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
     if current_user["role"] == "owner":
         owner_hotels = await crud.get_hotels_by_owner(session, current_user["id"])
         hotel_ids = [h.id for h in owner_hotels]
         bookings = await crud.get_bookings(session, hotel_ids=hotel_ids, limit=10)
     else:
         bookings = await crud.get_bookings(session, limit=10)
-    
+
     return [b.to_dict() for b in bookings]
 
 @api_router.get("/bookings/{booking_id}")
@@ -1546,6 +1595,104 @@ async def report_hotel(
     })
 
     return {"message": "Asante! Ripoti yako imepokelewa.", "id": report.id}
+
+# ===================== BACKOFFICE ENDPOINTS =====================
+# Internal staff who call hotels by phone to verify/update their details.
+# They can edit any hotel's data (see the shared allowlist checks on the
+# /hotels, /rooms and /photos endpoints above) but cannot see bookings,
+# revenue, user data, delete hotels, or change hotel ownership.
+
+@api_router.get("/backoffice/stats")
+async def backoffice_stats(
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "backoffice":
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
+    return await crud.get_backoffice_stats(session)
+
+@api_router.get("/backoffice/hotels")
+async def backoffice_list_hotels(
+    city: Optional[str] = None,
+    call_status: Optional[str] = None,
+    search: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "backoffice":
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
+    hotels, total = await crud.get_backoffice_hotels(
+        session, city=city, call_status=call_status, search=search, page=page, page_size=page_size
+    )
+
+    # One batched query for this page's latest call notes, not one per hotel.
+    notes_by_hotel = await crud.get_latest_call_notes_by_hotel(session, [h.id for h in hotels])
+
+    items = [
+        {
+            "id": h.id,
+            "name": h.name,
+            "city": h.city,
+            "phone": h.phone_number,
+            "status": h.status,
+            "last_updated": (h.updated_at or h.created_at).isoformat() if (h.updated_at or h.created_at) else None,
+            "call_status": h.call_status or "pending",
+            "call_notes": notes_by_hotel.get(h.id),
+        }
+        for h in hotels
+    ]
+
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+@api_router.patch("/backoffice/hotels/{hotel_id}/call-log")
+async def backoffice_log_call(
+    hotel_id: str,
+    log_data: HotelCallLogCreate,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "backoffice":
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
+    hotel = await crud.get_hotel_by_id(session, hotel_id)
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hotel haipatikani")
+
+    called_at = datetime.fromisoformat(log_data.called_at) if log_data.called_at else datetime.now(timezone.utc)
+
+    log = await crud.create_hotel_call_log(session, {
+        "id": generate_uuid(),
+        "hotel_id": hotel_id,
+        "backoffice_user_id": current_user["id"],
+        "call_status": log_data.call_status,
+        "call_notes": log_data.call_notes or "",
+        "called_at": called_at,
+    })
+
+    # The hotel's call_status always reflects the most recent call log entry.
+    await crud.update_hotel(session, hotel_id, {"call_status": log_data.call_status})
+    invalidate_hotel_cache(hotel_id)
+
+    return log.to_dict()
+
+@api_router.get("/backoffice/hotels/{hotel_id}/call-logs")
+async def backoffice_get_call_logs(
+    hotel_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "backoffice":
+        raise HTTPException(status_code=403, detail="Hauruhusiwi")
+
+    hotel = await crud.get_hotel_by_id(session, hotel_id)
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hotel haipatikani")
+
+    return await crud.get_call_logs_by_hotel(session, hotel_id)
 
 # ===================== CASHIER ENDPOINTS =====================
 
@@ -2407,6 +2554,7 @@ async def verify_hotel(
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
     
     await crud.update_hotel(session, hotel_id, {"status": "verified"})
+    invalidate_hotel_cache(hotel_id)
     return {"message": "Hotel imethibitishwa"}
 
 @api_router.put("/admin/hotels/{hotel_id}/suspend")
@@ -2419,6 +2567,7 @@ async def suspend_hotel(
         raise HTTPException(status_code=403, detail="Admin tu")
     
     await crud.update_hotel(session, hotel_id, {"status": "suspended"})
+    invalidate_hotel_cache(hotel_id)
     return {"message": "Hotel imesimamishwa"}
 
 @api_router.put("/admin/users/{user_id}/verify")
@@ -2436,6 +2585,58 @@ async def verify_owner(
     
     await crud.update_user(session, user_id, {"is_verified": True})
     return {"message": "Mmiliki amethibitishwa"}
+
+@api_router.get("/admin/users")
+async def admin_list_users(
+    role: Optional[str] = None,
+    search: Optional[str] = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin tu")
+
+    users = await crud.get_users_filtered(session, role=role, search=search)
+
+    result = []
+    for u in users:
+        data = u.to_dict()
+        hotel = await crud.get_hotel_by_id(session, u.assigned_hotel_id) if u.assigned_hotel_id else None
+        data["assigned_hotel_name"] = hotel.name if hotel else None
+        result.append(data)
+    return result
+
+@api_router.post("/admin/users")
+async def admin_create_user(
+    user_data: AdminUserCreate,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Generic account creation for any role, including 'backoffice'.
+    Backoffice accounts can only be created here - there is no self-registration path for them."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin tu")
+
+    existing = await crud.get_user_by_email(session, user_data.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email tayari imetumika")
+
+    temp_password = generate_temp_password()
+    user = await crud.create_user(session, {
+        "id": generate_uuid(),
+        "email": user_data.email,
+        "full_name": user_data.full_name,
+        "phone": format_phone(user_data.phone),
+        "role": user_data.role,
+        "assigned_hotel_id": user_data.assigned_hotel_id,
+        "password_hash": get_password_hash(temp_password),
+        "is_active": True,
+        "is_verified": True,
+    })
+
+    data = user.to_dict()
+    data["temp_password"] = temp_password
+    return data
 
 @api_router.get("/admin/pending-owners")
 async def get_pending_owners(
@@ -2568,6 +2769,7 @@ async def attach_owner_to_hotel(
         owner_id = owner.id
     
     await crud.update_hotel(session, hotel_id, {"owner_id": owner_id})
+    invalidate_hotel_cache(hotel_id)
     
     if temp_password:
         sms_msg = (
@@ -2656,6 +2858,7 @@ async def admin_update_hotel(
             raise HTTPException(status_code=400, detail="Hotel yenye jina hili ipo tayari")
     
     updated = await crud.update_hotel(session, hotel_id, update_data)
+    invalidate_hotel_cache(hotel_id)
     return updated.to_dict()
 
 @api_router.delete("/admin/hotels/{hotel_id}")
@@ -2718,7 +2921,7 @@ async def add_hotel_photo(
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
     
-    if current_user["role"] not in ["admin"] and hotel.owner_id != current_user["id"]:
+    if current_user["role"] not in ["admin", "backoffice"] and hotel.owner_id != current_user["id"]:
         raise HTTPException(status_code=403, detail="Hauna ruhusa")
     
     body = await request.json()
@@ -2752,6 +2955,7 @@ async def add_hotel_photo(
     cover = get_cover_url(photos, "cloudinary_web")
     
     await crud.update_hotel(session, hotel_id, {"photos": photos, "cover_photo": cover})
+    invalidate_hotel_cache(hotel_id)
     
     return photo_obj
 
@@ -2766,7 +2970,7 @@ async def set_primary_photo(
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
     
-    if current_user["role"] not in ["admin"] and hotel.owner_id != current_user["id"]:
+    if current_user["role"] not in ["admin", "backoffice"] and hotel.owner_id != current_user["id"]:
         raise HTTPException(status_code=403, detail="Hauna ruhusa")
     
     photos = hotel.photos or []
@@ -2784,6 +2988,7 @@ async def set_primary_photo(
     
     cover = get_cover_url(photos, "cloudinary_web")
     await crud.update_hotel(session, hotel_id, {"photos": photos, "cover_photo": cover})
+    invalidate_hotel_cache(hotel_id)
     
     return {"message": "Picha ya kwanza imebadilishwa"}
 
@@ -2798,7 +3003,7 @@ async def delete_hotel_photo(
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
     
-    if current_user["role"] not in ["admin"] and hotel.owner_id != current_user["id"]:
+    if current_user["role"] not in ["admin", "backoffice"] and hotel.owner_id != current_user["id"]:
         raise HTTPException(status_code=403, detail="Hauna ruhusa")
     
     photos = hotel.photos or []
@@ -2826,6 +3031,7 @@ async def delete_hotel_photo(
     
     cover = get_cover_url(new_photos, "cloudinary_web")
     await crud.update_hotel(session, hotel_id, {"photos": new_photos, "cover_photo": cover})
+    invalidate_hotel_cache(hotel_id)
     
     return {"message": "Picha imefutwa"}
 
@@ -2957,6 +3163,10 @@ async def preview_import(
             col_map['latitude'] = i
         elif h in ['lng', 'lon', 'long', 'longitude']:
             col_map['longitude'] = i
+        elif h in ['website', 'tovuti']:
+            col_map['website'] = i
+        elif h in ['google maps url', 'maps url', 'google_maps_url']:
+            col_map['google_maps_url'] = i
     
     previews = []
     errors = []
@@ -3034,6 +3244,12 @@ async def preview_import(
                 except (TypeError, ValueError):
                     longitude = None
 
+            website_col = col_map.get("website")
+            website = str(row[website_col] or "").strip() if website_col is not None and website_col < len(row) else ""
+
+            maps_url_col = col_map.get("google_maps_url")
+            google_maps_url = str(row[maps_url_col] or "").strip() if maps_url_col is not None and maps_url_col < len(row) else ""
+
             cover = get_cover_url(photos, "cloudinary_web")
             
             # Determine status and issues
@@ -3061,6 +3277,8 @@ async def preview_import(
                 "base_price": price,
                 "latitude": latitude,
                 "longitude": longitude,
+                "website": website,
+                "google_maps_url": google_maps_url,
                 "photos": photos,
                 "photo_count": valid_photo_count,
                 "cover_photo": cover,
@@ -3187,10 +3405,13 @@ async def execute_import(
                 "description": preview["description"],
                 "latitude": preview.get("latitude"),
                 "longitude": preview.get("longitude"),
+                "website": preview.get("website") or None,
+                "google_maps_url": preview.get("google_maps_url") or None,
                 "photos": preview["photos"],
                 "cover_photo": preview["cover_photo"],
                 "amenities": [],
                 "status": "imported",
+                "call_status": "pending",
                 "data_source": "bulk_import",
                 "import_batch_id": batch_id
             }
