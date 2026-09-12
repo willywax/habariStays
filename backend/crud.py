@@ -5,14 +5,14 @@ Provides async database operations using SQLAlchemy ORM
 
 from sqlalchemy import select, update, delete, func, and_, or_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 import uuid
 
 from models import (
     User, UserSession, Hotel, RoomType, Booking, Review,
-    CashierAssignment, CashierActivityLog, ImportBatch
+    CashierAssignment, CashierActivityLog, ImportBatch, HotelReport
 )
 
 
@@ -207,6 +207,54 @@ async def get_hotels(
     query = query.order_by(desc(Hotel.created_at)).limit(limit)
     result = await session.execute(query)
     return list(result.scalars().all())
+
+
+async def get_hotels_with_relations(
+    session: AsyncSession,
+    city: str = None,
+    search: str = None,
+    statuses: List[str] = None,
+    limit: int = 100
+) -> List[Hotel]:
+    """Like get_hotels(), but eagerly loads room_types and reviews for every
+    matched hotel in two extra batched queries total, instead of one query
+    per hotel per relation (fixes the N+1 pattern in the /hotels list endpoint)."""
+    query = select(Hotel).options(
+        selectinload(Hotel.room_types),
+        selectinload(Hotel.reviews),
+    )
+
+    conditions = []
+    if city:
+        conditions.append(func.lower(Hotel.city) == func.lower(city))
+    if statuses:
+        conditions.append(Hotel.status.in_(statuses))
+    if search:
+        conditions.append(
+            or_(
+                Hotel.name.ilike(f"%{search}%"),
+                Hotel.city.ilike(f"%{search}%"),
+                Hotel.address.ilike(f"%{search}%")
+            )
+        )
+
+    if conditions:
+        query = query.where(and_(*conditions))
+
+    query = query.order_by(desc(Hotel.created_at)).limit(limit)
+    result = await session.execute(query)
+    return list(result.unique().scalars().all())
+
+
+async def get_hotel_by_id_with_relations(session: AsyncSession, hotel_id: str) -> Optional[Hotel]:
+    """Like get_hotel_by_id(), but eagerly loads room_types and reviews in the
+    same query instead of two extra sequential queries after the fetch."""
+    result = await session.execute(
+        select(Hotel)
+        .where(Hotel.id == hotel_id)
+        .options(joinedload(Hotel.room_types), selectinload(Hotel.reviews))
+    )
+    return result.unique().scalar_one_or_none()
 
 
 async def get_hotels_by_owner(session: AsyncSession, owner_id: str) -> List[Hotel]:
@@ -476,6 +524,40 @@ async def get_revenue_sum(
     return result.scalar_one()
 
 
+async def get_booking_counts_by_hotel(
+    session: AsyncSession,
+    hotel_ids: List[str],
+    created_after: datetime = None
+) -> Dict[str, int]:
+    """Single GROUP BY query - replaces one count_bookings() call per hotel."""
+    if not hotel_ids:
+        return {}
+    query = select(Booking.hotel_id, func.count(Booking.id)).where(Booking.hotel_id.in_(hotel_ids))
+    if created_after:
+        query = query.where(Booking.created_at >= created_after)
+    query = query.group_by(Booking.hotel_id)
+    result = await session.execute(query)
+    return {row[0]: row[1] for row in result.all()}
+
+
+async def get_revenue_by_hotel(
+    session: AsyncSession,
+    hotel_ids: List[str],
+    created_after: datetime = None
+) -> Dict[str, int]:
+    """Single GROUP BY query - replaces one get_revenue_sum() call per hotel."""
+    if not hotel_ids:
+        return {}
+    query = select(Booking.hotel_id, func.coalesce(func.sum(Booking.total_amount_tzs), 0)).where(
+        and_(Booking.hotel_id.in_(hotel_ids), Booking.payment_status == "paid")
+    )
+    if created_after:
+        query = query.where(Booking.created_at >= created_after)
+    query = query.group_by(Booking.hotel_id)
+    result = await session.execute(query)
+    return {row[0]: row[1] for row in result.all()}
+
+
 async def search_bookings(
     session: AsyncSession,
     search_term: str,
@@ -527,6 +609,49 @@ async def get_reviews_by_hotel(session: AsyncSession, hotel_id: str) -> List[Rev
         select(Review).where(Review.hotel_id == hotel_id).order_by(desc(Review.created_at))
     )
     return list(result.scalars().all())
+
+
+# ===================== HOTEL REPORT OPERATIONS =====================
+
+async def create_hotel_report(session: AsyncSession, report_data: dict) -> HotelReport:
+    report = HotelReport(**report_data)
+    session.add(report)
+    await session.flush()
+    return report
+
+
+async def get_hotel_report_by_id(session: AsyncSession, report_id: str) -> Optional[HotelReport]:
+    result = await session.execute(
+        select(HotelReport).where(HotelReport.id == report_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_hotel_reports_with_hotel_name(
+    session: AsyncSession, resolved: bool = None
+) -> List[Dict]:
+    """Single joined query - returns each report plus its hotel's name,
+    instead of looking up the hotel per report."""
+    query = select(HotelReport, Hotel.name).join(Hotel, HotelReport.hotel_id == Hotel.id)
+    if resolved is not None:
+        query = query.where(HotelReport.resolved == resolved)
+    query = query.order_by(desc(HotelReport.created_at))
+    result = await session.execute(query)
+
+    reports = []
+    for report, hotel_name in result.all():
+        data = report.to_dict()
+        data["hotel_name"] = hotel_name
+        reports.append(data)
+    return reports
+
+
+async def resolve_hotel_report(session: AsyncSession, report_id: str) -> Optional[HotelReport]:
+    await session.execute(
+        update(HotelReport).where(HotelReport.id == report_id).values(resolved=True)
+    )
+    await session.flush()
+    return await get_hotel_report_by_id(session, report_id)
 
 
 # ===================== CASHIER ASSIGNMENT OPERATIONS =====================

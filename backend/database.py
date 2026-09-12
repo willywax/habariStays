@@ -7,7 +7,6 @@ import ssl
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pathlib import Path
@@ -58,13 +57,20 @@ if ssl_required or 'neon.tech' in DATABASE_URL:
     ssl_context.verify_mode = ssl.CERT_NONE
     connect_args['ssl'] = ssl_context
 
-# Create async engine
+# Create async engine.
+# Connection pool: SQLAlchemy's async engine (on top of the asyncpg driver) IS
+# the connection pool here - there is no separate raw asyncpg.Pool in this
+# codebase. pool_size is the number of connections kept open per Cloud Run
+# instance ("min"); max_overflow lets it burst above that under load, capped
+# so pool_size + max_overflow never exceeds 10 ("max") per instance.
 engine = create_async_engine(
     clean_url,
     echo=os.environ.get('DB_ECHO', 'false').lower() == 'true',  # SQL logging
-    pool_pre_ping=True,  # Verify connections are valid
-    pool_size=10,
-    max_overflow=20,
+    pool_pre_ping=True,  # Verify connections are valid before use
+    pool_size=2,
+    max_overflow=8,
+    pool_recycle=300,  # recycle connections every 5 min - avoids stale/dropped
+                        # connections to a remote/serverless Postgres (e.g. Neon)
     connect_args=connect_args,
 )
 

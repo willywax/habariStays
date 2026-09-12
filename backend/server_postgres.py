@@ -12,7 +12,7 @@ from sqlalchemy import select, update, delete, func, and_, or_, desc
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import List, Optional, Any
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -24,6 +24,7 @@ import asyncio
 import io
 import json
 import openpyxl
+from cachetools import TTLCache
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -67,6 +68,12 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
 
 # Booking expiry time in seconds
 BOOKING_EXPIRY_SECONDS = 120  # 2 minutes
+
+# In-memory response caches (60s TTL) for the most-called public read endpoints.
+# Per-process only - fine for a handful of Cloud Run instances, not a shared cache.
+_hotels_list_cache = TTLCache(maxsize=256, ttl=60)
+_hotel_detail_cache = TTLCache(maxsize=512, ttl=60)
+_cities_cache = TTLCache(maxsize=4, ttl=60)
 
 # Hotel-level and Room-level amenity constants
 HOTEL_AMENITIES = ["Breakfast", "Parking", "WiFi", "Hot Water", "Bar"]
@@ -282,6 +289,20 @@ class ReviewResponse(BaseModel):
     rating: int
     comment: str
     created_at: str
+
+REPORT_FIELDS = ["price", "phone", "address", "closed", "other"]
+
+class HotelReportCreate(BaseModel):
+    field_reported: str
+    note: Optional[str] = None
+    reporter_email: Optional[EmailStr] = None
+
+    @field_validator("field_reported")
+    @classmethod
+    def validate_field_reported(cls, v):
+        if v not in REPORT_FIELDS:
+            raise ValueError(f"field_reported must be one of {REPORT_FIELDS}")
+        return v
 
 class CashierCreate(BaseModel):
     full_name: str
@@ -745,15 +766,10 @@ async def get_hotels(
     checkout: Optional[str] = None,
     session: AsyncSession = Depends(get_db_session)
 ):
-    query_params = {}
-    if city:
-        query_params["city"] = city
-    if search:
-        query_params["search"] = search
-
-    # Only show verified/imported hotels to public
-    hotels = await crud.get_hotels(session, **query_params, status=None)
-    hotels = [h for h in hotels if h.status in ["verified", "imported"]]
+    cache_key = (city, search, checkin, checkout)
+    cached = _hotels_list_cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     # TODO: there is no per-date availability table yet — RoomType only stores a
     # static total_rooms/available_rooms count, not date-ranged bookings. Once an
@@ -762,20 +778,29 @@ async def get_hotels(
     # checkin/checkout are accepted so the frontend can pass them, but they do
     # not affect which hotels/rooms are returned (pass-through only).
 
+    # Only show verified/imported hotels to public. room_types and reviews are
+    # eagerly loaded here (2 extra batched queries total) instead of one query
+    # per hotel per relation, which was the main N+1 source on this endpoint.
+    hotels = await crud.get_hotels_with_relations(
+        session, city=city, search=search, statuses=["verified", "imported"]
+    )
+
+    hotel_ids = [h.id for h in hotels]
+    start_of_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # Two grouped queries covering every hotel, instead of 2 queries PER hotel.
+    bookings_by_hotel = await crud.get_booking_counts_by_hotel(session, hotel_ids, created_after=start_of_month)
+    revenue_by_hotel = await crud.get_revenue_by_hotel(session, hotel_ids, created_after=start_of_month)
+
     result = []
     for hotel in hotels:
-        rooms = await crud.get_room_types_by_hotel(session, hotel.id)
+        rooms = hotel.room_types
         total_rooms = sum(r.total_rooms for r in rooms)
         available_rooms = sum(r.available_rooms for r in rooms)
         min_price = min((r.price_per_night for r in rooms), default=None)
-        
-        reviews = await crud.get_reviews_by_hotel(session, hotel.id)
+
+        reviews = hotel.reviews
         avg_rating = sum(r.rating for r in reviews) / len(reviews) if reviews else 0
-        
-        start_of_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        bookings_count = await crud.count_bookings(session, hotel_id=hotel.id, created_after=start_of_month)
-        revenue = await crud.get_revenue_sum(session, hotel_id=hotel.id, created_after=start_of_month)
-        
+
         hotel_dict = hotel.to_dict()
         hotel_dict.update({
             "total_rooms": total_rooms,
@@ -783,28 +808,38 @@ async def get_hotels(
             "min_price": min_price,
             "average_rating": round(avg_rating, 1),
             "review_count": len(reviews),
-            "bookings_this_month": bookings_count,
-            "revenue_this_month": revenue,
+            "bookings_this_month": bookings_by_hotel.get(hotel.id, 0),
+            "revenue_this_month": revenue_by_hotel.get(hotel.id, 0),
         })
         result.append(hotel_dict)
-    
+
+    _hotels_list_cache[cache_key] = result
     return result
 
 @api_router.get("/hotels/cities")
 async def get_cities(session: AsyncSession = Depends(get_db_session)):
+    cached = _cities_cache.get("all")
+    if cached is not None:
+        return cached
     cities = await crud.get_distinct_cities(session)
-    return [{"city": c, "count": 0} for c in cities]
+    result = [{"city": c, "count": 0} for c in cities]
+    _cities_cache["all"] = result
+    return result
 
 @api_router.get("/hotels/{hotel_id}")
 async def get_hotel(hotel_id: str, session: AsyncSession = Depends(get_db_session)):
-    hotel = await crud.get_hotel_by_id(session, hotel_id)
+    cached = _hotel_detail_cache.get(hotel_id)
+    if cached is not None:
+        return cached
+
+    hotel = await crud.get_hotel_by_id_with_relations(session, hotel_id)
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
-    
-    rooms = await crud.get_room_types_by_hotel(session, hotel.id)
-    reviews = await crud.get_reviews_by_hotel(session, hotel.id)
+
+    rooms = hotel.room_types
+    reviews = hotel.reviews
     avg_rating = sum(r.rating for r in reviews) / len(reviews) if reviews else 0
-    
+
     hotel_dict = hotel.to_dict()
     hotel_dict.update({
         "room_types": [r.to_dict() for r in rooms],
@@ -812,7 +847,8 @@ async def get_hotel(hotel_id: str, session: AsyncSession = Depends(get_db_sessio
         "average_rating": round(avg_rating, 1),
         "review_count": len(reviews),
     })
-    
+
+    _hotel_detail_cache[hotel_id] = hotel_dict
     return hotel_dict
 
 @api_router.get("/hotels/{hotel_id}/full")
@@ -820,18 +856,18 @@ async def get_hotel_full(
     hotel_id: str,
     session: AsyncSession = Depends(get_db_session)
 ):
-    hotel = await crud.get_hotel_by_id(session, hotel_id)
+    hotel = await crud.get_hotel_by_id_with_relations(session, hotel_id)
     if not hotel:
         raise HTTPException(status_code=404, detail="Hotel haipatikani")
-    
-    rooms = await crud.get_room_types_by_hotel(session, hotel.id)
-    reviews = await crud.get_reviews_by_hotel(session, hotel.id)
+
+    rooms = hotel.room_types
+    reviews = hotel.reviews
     owner = await crud.get_user_by_id(session, hotel.owner_id) if hotel.owner_id else None
-    
+
     start_of_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     bookings_count = await crud.count_bookings(session, hotel_id=hotel.id, created_after=start_of_month)
     avg_rating = sum(r.rating for r in reviews) / len(reviews) if reviews else 0
-    
+
     hotel_dict = hotel.to_dict()
     hotel_dict.update({
         "room_types": [r.to_dict() for r in rooms],
@@ -845,7 +881,7 @@ async def get_hotel_full(
         "average_rating": round(avg_rating, 1),
         "review_count": len(reviews),
     })
-    
+
     return hotel_dict
 
 @api_router.get("/owner/hotels")
@@ -930,16 +966,17 @@ async def patch_hotel(
     body = await request.json()
 
     allowed_fields = ["name", "description", "address", "city", "phone_number", "whatsapp_number",
-                      "amenities", "photos", "cover_photo", "google_maps_url", "status"]
+                      "amenities", "photos", "cover_photo", "google_maps_url", "status",
+                      "latitude", "longitude"]
     update_data = {k: v for k, v in body.items() if k in allowed_fields}
-    
+
     if not update_data:
         raise HTTPException(status_code=400, detail="Hakuna mabadiliko")
-    
+
     # Update cover_photo from photos if changed
     if "photos" in update_data:
         update_data["cover_photo"] = get_cover_url(update_data["photos"], "cloudinary_web")
-    
+
     updated = await crud.update_hotel(session, hotel_id, update_data)
     return updated.to_dict()
 
@@ -1484,6 +1521,31 @@ async def list_reviews(
         raise HTTPException(status_code=400, detail="hotel_id inahitajika")
     reviews = await crud.get_reviews_by_hotel(session, hotel_id)
     return [r.to_dict() for r in reviews]
+
+# ===================== HOTEL REPORT ENDPOINTS =====================
+
+@api_router.post("/hotels/{hotel_id}/report")
+@limiter.limit("3/hour")
+async def report_hotel(
+    request: Request,
+    hotel_id: str,
+    report_data: HotelReportCreate,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Public, unauthenticated - anyone can flag a listing as wrong."""
+    hotel = await crud.get_hotel_by_id(session, hotel_id)
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hotel haipatikani")
+
+    report = await crud.create_hotel_report(session, {
+        "id": generate_uuid(),
+        "hotel_id": hotel_id,
+        "reporter_email": report_data.reporter_email,
+        "field_reported": report_data.field_reported,
+        "note": report_data.note or "",
+    })
+
+    return {"message": "Asante! Ripoti yako imepokelewa.", "id": report.id}
 
 # ===================== CASHIER ENDPOINTS =====================
 
@@ -2386,6 +2448,33 @@ async def get_pending_owners(
     owners = await crud.get_pending_owners(session)
     return [o.to_dict() for o in owners]
 
+@api_router.get("/admin/reports")
+async def get_hotel_reports(
+    resolved: Optional[bool] = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin tu")
+
+    return await crud.get_hotel_reports_with_hotel_name(session, resolved=resolved)
+
+@api_router.put("/admin/reports/{report_id}/resolve")
+async def resolve_hotel_report(
+    report_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin tu")
+
+    report = await crud.get_hotel_report_by_id(session, report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Ripoti haipatikani")
+
+    updated = await crud.resolve_hotel_report(session, report_id)
+    return updated.to_dict()
+
 @api_router.get("/admin/all-hotels")
 async def get_all_hotels_admin(
     status_filter: Optional[str] = None,
@@ -2864,6 +2953,10 @@ async def preview_import(
             col_map['price'] = i
         elif h in ['city', 'mji']:
             col_map['city'] = i
+        elif h in ['lat', 'latitude']:
+            col_map['latitude'] = i
+        elif h in ['lng', 'lon', 'long', 'longitude']:
+            col_map['longitude'] = i
     
     previews = []
     errors = []
@@ -2924,7 +3017,23 @@ async def preview_import(
             city = str(row[city_col] or "").strip() if city_col is not None and city_col < len(row) else ""
             if not city:
                 city = extract_city_from_address(address)
-            
+
+            latitude = None
+            lat_col = col_map.get("latitude")
+            if lat_col is not None and lat_col < len(row) and row[lat_col] not in (None, ""):
+                try:
+                    latitude = float(row[lat_col])
+                except (TypeError, ValueError):
+                    latitude = None
+
+            longitude = None
+            lng_col = col_map.get("longitude")
+            if lng_col is not None and lng_col < len(row) and row[lng_col] not in (None, ""):
+                try:
+                    longitude = float(row[lng_col])
+                except (TypeError, ValueError):
+                    longitude = None
+
             cover = get_cover_url(photos, "cloudinary_web")
             
             # Determine status and issues
@@ -2950,6 +3059,8 @@ async def preview_import(
                 "rating": rating,
                 "description": description,
                 "base_price": price,
+                "latitude": latitude,
+                "longitude": longitude,
                 "photos": photos,
                 "photo_count": valid_photo_count,
                 "cover_photo": cover,
@@ -3074,6 +3185,8 @@ async def execute_import(
                 "phone_number": preview["phone"],
                 "google_rating": float(preview["rating"]) if preview["rating"] else None,
                 "description": preview["description"],
+                "latitude": preview.get("latitude"),
+                "longitude": preview.get("longitude"),
                 "photos": preview["photos"],
                 "cover_photo": preview["cover_photo"],
                 "amenities": [],
@@ -3250,7 +3363,9 @@ async def test_sms(data: TestSmsRequest, current_user: dict = Depends(get_curren
 
 @api_router.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "Habari Stays API", "version": "2.1.0", "database": "PostgreSQL"}
+    # No DB call on purpose - Cloud Run's liveness/startup probe hits this
+    # frequently and must never be slowed down (or falsely fail) by DB latency.
+    return {"status": "ok"}
 
 # Include router
 app.include_router(api_router)

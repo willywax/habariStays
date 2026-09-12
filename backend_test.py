@@ -66,7 +66,7 @@ class HabariStaysAPITester:
     def test_health_check(self):
         """Test health endpoint"""
         result = self.make_request('GET', '/health')
-        if result['success'] and result['data'].get('status') == 'healthy':
+        if result['success'] and result['data'].get('status') == 'ok':
             self.log_test("Health Check", "PASS")
             return True
         else:

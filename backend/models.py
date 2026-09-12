@@ -65,6 +65,14 @@ class PaymentMethod(str, enum.Enum):
     CARD = "card"
 
 
+class ReportField(str, enum.Enum):
+    PRICE = "price"
+    PHONE = "phone"
+    ADDRESS = "address"
+    CLOSED = "closed"
+    OTHER = "other"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -329,6 +337,34 @@ class Review(Base):
             "guest_phone": self.guest_phone,
             "rating": self.rating,
             "comment": self.comment,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class HotelReport(Base):
+    """A visitor-submitted 'this listing looks wrong' report - anonymous,
+    no auth required to create. Admins review and resolve these."""
+    __tablename__ = "hotel_reports"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    hotel_id = Column(String(36), ForeignKey("hotels.id", ondelete="CASCADE"), nullable=False, index=True)
+    reporter_email = Column(String(255), nullable=True)
+    field_reported = Column(String(20), nullable=False)
+    note = Column(Text, default="")
+    resolved = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relationships
+    hotel = relationship("Hotel")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "hotel_id": self.hotel_id,
+            "reporter_email": self.reporter_email,
+            "field_reported": self.field_reported,
+            "note": self.note,
+            "resolved": self.resolved,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

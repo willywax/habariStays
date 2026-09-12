@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api, LoadingSpinner, formatTZS, useAuth } from "../App";
 import PhotoManager, { getPhotoUrl } from "./PhotoManager";
-import { ChevronLeft, Plus, Trash2, AlertTriangle, Save, X } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, AlertTriangle, Save, X, MapPin } from "lucide-react";
 
 const HOTEL_AMENITIES = [
   { key: "Breakfast", icon: "\u{1F373}" },
@@ -170,13 +170,19 @@ const HotelBasicInfo = ({ hotel, isAdmin, onSave }) => {
     whatsapp_number: hotel.whatsapp_number || "",
     website: hotel.website || "",
     google_maps_url: hotel.google_maps_url || "",
+    latitude: hotel.latitude ?? "",
+    longitude: hotel.longitude ?? "",
   });
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.patch(`/hotels/${hotel.id}`, form);
+      await api.patch(`/hotels/${hotel.id}`, {
+        ...form,
+        latitude: form.latitude === "" ? null : parseFloat(form.latitude),
+        longitude: form.longitude === "" ? null : parseFloat(form.longitude),
+      });
       toast.success("Taarifa zimehifadhiwa!");
       onSave();
     } catch (err) {
@@ -238,6 +244,24 @@ const HotelBasicInfo = ({ hotel, isAdmin, onSave }) => {
           <label className="block text-sm font-medium text-[#52525B] mb-1">Google Maps URL</label>
           <input type="text" value={form.google_maps_url} onChange={e => f("google_maps_url", e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#52525B] mb-1">Latitude</label>
+          <input type="number" step="any" value={form.latitude} onChange={e => f("latitude", e.target.value)}
+            placeholder="-6.7924"
+            className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" data-testid="edit-hotel-latitude" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#52525B] mb-1">Longitude</label>
+          <input type="number" step="any" value={form.longitude} onChange={e => f("longitude", e.target.value)}
+            placeholder="39.2083"
+            className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-[#9A3324]" data-testid="edit-hotel-longitude" />
+        </div>
+        <div className="md:col-span-2 -mt-2">
+          <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-[#0F4C5C] hover:underline" data-testid="find-coordinates-link">
+            <MapPin className="w-3.5 h-3.5" /> Find coordinates
+          </a>
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-[#52525B] mb-1">Maelezo</label>

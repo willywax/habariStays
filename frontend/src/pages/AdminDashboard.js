@@ -7,7 +7,7 @@ import HotelEditPage from "../components/HotelEditPage";
 import {
   LayoutDashboard, Building2, Users, LogOut, Upload, UserCheck,
   Check, X, AlertTriangle, Search, Phone, Mail, Image, ChevronLeft,
-  Camera, Plus, Pencil, Trash2
+  Camera, Plus, Pencil, Trash2, Flag
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -27,6 +27,7 @@ const AdminDashboard = () => {
     { path: "/admin", icon: LayoutDashboard, label: translate("Dashboard", "Dashibodi"), exact: true },
     { path: "/admin/hotels", icon: Building2, label: translate("Hotels", "Hoteli") },
     { path: "/admin/owners", icon: UserCheck, label: translate("Owners", "Wamiliki") },
+    { path: "/admin/reports", icon: Flag, label: translate("Reports", "Ripoti") },
     { path: "/admin/cashiers", icon: Users, label: translate("Cashiers", "Weka Hazina") },
     { path: "/admin/import", icon: Upload, label: translate("Import Hotels", "Ingiza Hoteli") },
     { path: "/admin/users", icon: Users, label: translate("Users", "Watumiaji") },
@@ -78,6 +79,7 @@ const AdminDashboard = () => {
           <Route path="/hotels/:hotelId" element={<HotelEditPage basePath="/admin" />} />
           <Route path="/hotels/:hotelId/photos" element={<AdminHotelPhotos />} />
           <Route path="/owners" element={<AdminOwners />} />
+          <Route path="/reports" element={<AdminReports />} />
           <Route path="/cashiers" element={<AdminCashiers />} />
           <Route path="/users" element={<AdminUsers />} />
           <Route path="/import" element={<AdminImport />} />
@@ -530,6 +532,112 @@ const AdminOwners = () => {
         <div className="bg-green-50 rounded-xl border border-green-200 p-4 text-center">
           <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
           <p className="text-green-800 font-medium">{translate("No pending owners", "Hakuna wamiliki wanaosubiri uthibitishaji")}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ================== ADMIN REPORTS ==================
+const AdminReports = () => {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("open");
+  const { lang } = useLang();
+  const translate = (en, sw) => (lang === "sw" ? sw : en);
+
+  useEffect(() => { fetchData(); }, [filter]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const params = filter === "all" ? "" : `?resolved=${filter === "resolved"}`;
+      const res = await api.get(`/admin/reports${params}`);
+      setReports(res.data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const resolveReport = async (id) => {
+    try {
+      await api.put(`/admin/reports/${id}/resolve`);
+      toast.success(translate("Marked as resolved", "Imetatuliwa"));
+      fetchData();
+    } catch (err) { toast.error(translate("Failed", "Imeshindikana")); }
+  };
+
+  const fieldLabels = {
+    price: translate("Price", "Bei"),
+    phone: translate("Phone number", "Namba ya Simu"),
+    address: translate("Address", "Anwani"),
+    closed: translate("Hotel is closed", "Hoteli Imefungwa"),
+    other: translate("Other", "Nyingine"),
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">{translate("Reports", "Ripoti")}</h1>
+        <p className="text-[#52525B]">{translate("Visitor-submitted listing issues", "Matatizo ya orodha yaliyoripotiwa na wageni")}</p>
+      </div>
+
+      <div className="flex gap-2">
+        {[["open", translate("Open", "Wazi")], ["resolved", translate("Resolved", "Zimetatuliwa")], ["all", translate("All", "Zote")]].map(([key, label]) => (
+          <button key={key} onClick={() => setFilter(key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === key ? "bg-[#9A3324] text-white" : "bg-white text-[#52525B] border border-border hover:bg-[#F4F4F5]"}`}
+            data-testid={`reports-filter-${key}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {reports.length > 0 ? (
+        <div className="bg-white rounded-xl border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-[#F4F4F5]">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Hotel", "Hoteli")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Issue", "Tatizo")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Note", "Maelezo")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Date", "Tarehe")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Status", "Hali")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#52525B]">{translate("Actions", "Vitendo")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {reports.map((r) => (
+                  <tr key={r.id} data-testid={`report-row-${r.id}`}>
+                    <td className="px-4 py-3 font-medium text-[#18181B]">{r.hotel_name}</td>
+                    <td className="px-4 py-3 text-sm text-[#52525B]">{fieldLabels[r.field_reported] || r.field_reported}</td>
+                    <td className="px-4 py-3 text-sm text-[#52525B] max-w-xs truncate" title={r.note}>{r.note || "-"}</td>
+                    <td className="px-4 py-3 text-sm text-[#A1A1AA]">{new Date(r.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${r.resolved ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                        {r.resolved ? translate("Resolved", "Imetatuliwa") : translate("Open", "Wazi")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {!r.resolved && (
+                        <button onClick={() => resolveReport(r.id)}
+                          className="flex items-center gap-1 bg-green-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-600"
+                          data-testid={`resolve-report-${r.id}`}>
+                          <Check className="w-4 h-4" /> {translate("Mark Resolved", "Weka Imetatuliwa")}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-green-50 rounded-xl border border-green-200 p-4 text-center">
+          <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
+          <p className="text-green-800 font-medium">{translate("No reports", "Hakuna ripoti")}</p>
         </div>
       )}
     </div>

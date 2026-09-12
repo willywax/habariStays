@@ -3,8 +3,24 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link,
 import axios from "axios";
 import { Toaster, toast } from "sonner";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { Helmet } from "react-helmet-async";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { getPhotoUrl, getCoverUrl } from "./components/PhotoManager";
 import "@/App.css";
+
+// Leaflet's default marker icon URLs break under webpack bundling unless
+// re-pointed at the bundled asset URLs - this is the standard fix.
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 // Context
 const AuthContext = createContext(null);
@@ -1028,9 +1044,18 @@ const SearchPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
-      <title>{filters.city ? `Hotels in ${filters.city}, Tanzania | Habari Stays` : "Hotels in Tanzania | Habari Stays"}</title>
-      <meta name="description" content={filters.city ? `Find and book hotels in ${filters.city}, Tanzania. ${hotels.length} hotels available. Best prices guaranteed on Habari Stays.` : `Browse ${hotels.length} hotels across Tanzania. Compare prices, read reviews and book instantly.`} />
-      <link rel="canonical" href={`https://habaristays.com/search${filters.city ? `?city=${encodeURIComponent(filters.city)}` : ''}`} />
+      <Helmet>
+        <title>{filters.city ? `Hotels in ${filters.city} | Habari Stays` : "Search Hotels in Tanzania"}</title>
+        <meta
+          name="description"
+          content={
+            filters.city
+              ? `Find affordable hotels in ${filters.city}, Tanzania. Compare prices and contact hotels directly on Habari Stays.`
+              : "Find affordable hotels across Tanzania. Compare prices and contact hotels directly on Habari Stays."
+          }
+        />
+        <link rel="canonical" href={`https://habaristays.com/search${filters.city ? `?city=${encodeURIComponent(filters.city)}` : ''}`} />
+      </Helmet>
       <Navbar />
       <div className="pt-24 pb-16 px-4">
         <div className="max-w-7xl mx-auto">
@@ -1152,6 +1177,10 @@ const HotelDetailPage = () => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportField, setReportField] = useState("price");
+  const [reportNote, setReportNote] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -1180,65 +1209,66 @@ const HotelDetailPage = () => {
   const isImported = hotel.status === "imported";
   const isVerified = hotel.status === "verified" || hotel.status === "owner_attached";
 
-  const handleGetDirections = () => {
-    const destination = encodeURIComponent(`${hotel.name}, ${hotel.city}, Tanzania`);
-    const mapsUrl = hotel.google_maps_url
-      ? hotel.google_maps_url
-      : `https://www.google.com/maps/search/?api=1&query=${destination}`;
+  const hasCoords = typeof hotel.latitude === "number" && typeof hotel.longitude === "number";
+  const directionsUrl = hasCoords
+    ? `https://www.google.com/maps?q=${hotel.latitude},${hotel.longitude}`
+    : `https://www.google.com/maps/search/${encodeURIComponent(hotel.name)}+${encodeURIComponent(hotel.city)}+Tanzania`;
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          window.open(
-            `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destination}`,
-            "_blank"
-          );
-        },
-        () => {
-          window.open(
-            `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
-            "_blank"
-          );
-        }
-      );
-    } else {
-      window.open(mapsUrl, "_blank");
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    setReportSubmitting(true);
+    try {
+      await api.post(`/hotels/${hotel.id}/report`, {
+        field_reported: reportField,
+        note: reportNote || null,
+      });
+      toast.success(lang === "sw" ? "Asante! Ripoti yako imetumwa." : "Thanks! Your report was submitted.");
+      setShowReportModal(false);
+      setReportNote("");
+      setReportField("price");
+    } catch (err) {
+      if (err.response?.status === 429) {
+        toast.error(lang === "sw" ? "Umetuma ripoti nyingi. Jaribu tena baadaye." : "Too many reports submitted. Please try again later.");
+      } else {
+        toast.error(lang === "sw" ? "Imeshindikana kutuma ripoti" : "Failed to submit report");
+      }
+    } finally {
+      setReportSubmitting(false);
     }
   };
 
   const coverImage = getCoverUrl(hotel.photos, "web") || hotel.cover_photo || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920";
-  const minPrice = rooms.length > 0 ? Math.min(...rooms.map(r => r.price_per_night)) : null;
-  const metaDescription = `Book ${hotel.name} in ${hotel.city}, Tanzania.${hotel.description ? " " + hotel.description.slice(0, 100) + "." : ""}${minPrice ? ` From TZS ${minPrice.toLocaleString()}/night.` : ""} Best rates on Habari Stays.`;
+  const pageTitle = `${hotel.name} | Habari Stays`;
+  const metaDescription = hotel.description
+    ? hotel.description.slice(0, 155)
+    : `Book ${hotel.name} in ${hotel.city}, Tanzania. Affordable accommodation on Habari Stays.`;
+  const canonicalUrl = `https://habaristays.com/hotel/${hotel.id}`;
 
   const hotelSchema = {
     "@context": "https://schema.org",
     "@type": "LodgingBusiness",
     "name": hotel.name,
-    "description": hotel.description || `Hotel in ${hotel.city}, Tanzania`,
-    "url": `https://habaristays.com/hotel/${hotel.id}`,
-    "image": coverImage,
     "address": {
       "@type": "PostalAddress",
+      "streetAddress": hotel.address,
       "addressLocality": hotel.city,
-      "addressRegion": hotel.city,
       "addressCountry": "TZ"
     },
-    ...(minPrice && { "priceRange": `From TZS ${minPrice.toLocaleString()}/night` }),
-    ...(hotel.rating && { "aggregateRating": { "@type": "AggregateRating", "ratingValue": hotel.rating, "bestRating": "5", "ratingCount": hotel.review_count || 1 } })
+    "telephone": hotel.phone_number,
+    "image": coverImage,
   };
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]">
-      <title>{`${hotel.name} – Hotel in ${hotel.city}, Tanzania | Habari Stays`}</title>
-      <meta name="description" content={metaDescription} />
-      <link rel="canonical" href={`https://habaristays.com/hotel/${hotel.id}`} />
-      <meta property="og:type" content="place" />
-      <meta property="og:title" content={`${hotel.name} | ${hotel.city} Hotel | Habari Stays`} />
-      <meta property="og:description" content={metaDescription} />
-      <meta property="og:image" content={coverImage} />
-      <meta property="og:url" content={`https://habaristays.com/hotel/${hotel.id}`} />
-      <script type="application/ld+json">{JSON.stringify(hotelSchema)}</script>
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={metaDescription} />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={metaDescription} />
+        <meta property="og:image" content={coverImage} />
+        <script type="application/ld+json">{JSON.stringify(hotelSchema)}</script>
+      </Helmet>
       <Navbar />
 
       {/* Hero */}
@@ -1524,20 +1554,104 @@ const HotelDetailPage = () => {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={handleGetDirections}
+              {hasCoords && (
+                <div className="w-full h-56 rounded-lg overflow-hidden mb-4" data-testid="hotel-map">
+                  <MapContainer
+                    center={[hotel.latitude, hotel.longitude]}
+                    zoom={15}
+                    style={{ height: "100%", width: "100%" }}
+                    scrollWheelZoom={false}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[hotel.latitude, hotel.longitude]}>
+                      <Popup>{hotel.name}</Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+              )}
+              <a
+                href={directionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 bg-[#E07B2A] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#C96A1F] transition-all"
+                data-testid="get-directions-btn"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
                 {lang === "sw" ? "Pata Maelekezo" : "Get Directions"}
-              </button>
+              </a>
             </div>
           </div>
         </div>
+
+        <div className="text-center pb-4">
+          <button
+            type="button"
+            onClick={() => setShowReportModal(true)}
+            className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A]/60 hover:underline"
+            data-testid="report-incorrect-info-link"
+          >
+            {lang === "sw" ? "Taarifu makosa kwenye taarifa hii" : "Report incorrect info"}
+          </button>
+        </div>
       </div>
       <Footer />
+
+      {/* Report Incorrect Info Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowReportModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()} data-testid="report-issue-modal">
+            <div className="flex items-center justify-between">
+              <h3 className="font-['Outfit'] text-lg font-bold text-[#1A1A1A]">
+                {lang === "sw" ? "Taarifu Tatizo" : "Report Incorrect Info"}
+              </h3>
+              <button type="button" onClick={() => setShowReportModal(false)} className="p-1 hover:bg-[#F4F4F5] rounded-lg" aria-label="Close">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <form onSubmit={handleReportSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-[#1A1A1A]/60 mb-1">{lang === "sw" ? "Kuna tatizo gani?" : "What's wrong?"}</label>
+                <select
+                  value={reportField}
+                  onChange={(e) => setReportField(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-[#1A1A1A]/10 focus:outline-none focus:ring-2 focus:ring-[#E07B2A]"
+                  data-testid="report-field-select"
+                >
+                  <option value="price">{lang === "sw" ? "Bei" : "Price"}</option>
+                  <option value="phone">{lang === "sw" ? "Namba ya Simu" : "Phone number"}</option>
+                  <option value="address">{lang === "sw" ? "Anwani" : "Address"}</option>
+                  <option value="closed">{lang === "sw" ? "Hoteli Imefungwa" : "Hotel is closed"}</option>
+                  <option value="other">{lang === "sw" ? "Nyingine" : "Other"}</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-[#1A1A1A]/60 mb-1">{lang === "sw" ? "Maelezo (hiari)" : "Details (optional)"}</label>
+                <textarea
+                  value={reportNote}
+                  onChange={(e) => setReportNote(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  className="w-full px-3 py-2 rounded-lg border border-[#1A1A1A]/10 focus:outline-none focus:ring-2 focus:ring-[#E07B2A]"
+                  data-testid="report-note-input"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={reportSubmitting}
+                className="w-full bg-[#E07B2A] text-white px-4 py-2.5 rounded-lg font-medium hover:bg-[#C96A1F] transition-all disabled:opacity-50"
+                data-testid="report-submit-btn"
+              >
+                {reportSubmitting ? "..." : (lang === "sw" ? "Tuma" : "Submit")}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Photo Lightbox */}
       {activePhoto && (
