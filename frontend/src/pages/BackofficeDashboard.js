@@ -321,7 +321,12 @@ const BackofficeHotelList = () => {
 };
 
 // ════════════════ ROOM TYPES (inline add/edit/delete) ════════════════
-const RoomTypesSection = ({ hotelId, rooms, onChange, lang }) => {
+// Keep the wrapper identity stable so input state updates do not remount its children.
+const RoomRow = ({ children }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_140px_auto] gap-2 items-center">{children}</div>
+);
+
+export const RoomTypesSection = ({ hotelId, rooms, onChange, lang }) => {
   const [editingId, setEditingId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", total_rooms: 1, price_per_night: 50000 });
@@ -394,10 +399,6 @@ const RoomTypesSection = ({ hotelId, rooms, onChange, lang }) => {
     }
   };
 
-  const RoomRow = ({ children }) => (
-    <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_140px_auto] gap-2 items-center">{children}</div>
-  );
-
   return (
     <div className="bg-white rounded-xl border border-border p-4 md:p-6 space-y-3">
       <div className="flex items-center justify-between">
@@ -418,12 +419,12 @@ const RoomTypesSection = ({ hotelId, rooms, onChange, lang }) => {
           <div key={room.id} className="border border-border rounded-lg p-3">
             {editingId === room.id ? (
               <RoomRow>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                <input value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   className="px-3 py-2 rounded-lg border border-border text-sm" placeholder={lang === "sw" ? "Jina la chumba" : "Room name"}
                   data-testid={`edit-room-name-${room.id}`} />
-                <input type="number" min={0} value={form.total_rooms} onChange={(e) => setForm({ ...form, total_rooms: e.target.value })}
+                <input type="number" min={0} value={form.total_rooms} onChange={(e) => setForm(prev => ({ ...prev, total_rooms: e.target.value }))}
                   className="px-3 py-2 rounded-lg border border-border text-sm" placeholder={lang === "sw" ? "Idadi" : "Rooms"} />
-                <input type="number" min={0} value={form.price_per_night} onChange={(e) => setForm({ ...form, price_per_night: e.target.value })}
+                <input type="number" min={0} value={form.price_per_night} onChange={(e) => setForm(prev => ({ ...prev, price_per_night: e.target.value }))}
                   className="px-3 py-2 rounded-lg border border-border text-sm" placeholder="TZS" />
                 <div className="flex gap-2">
                   <button onClick={() => saveEdit(room.id)} disabled={saving} className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50" data-testid={`save-room-${room.id}`}>
@@ -462,13 +463,13 @@ const RoomTypesSection = ({ hotelId, rooms, onChange, lang }) => {
         {adding && (
           <div className="border border-[#0F4C5C]/30 bg-[#0F4C5C]/5 rounded-lg p-3">
             <RoomRow>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              <input value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                 className="px-3 py-2 rounded-lg border border-border text-sm" placeholder={lang === "sw" ? "Jina la chumba" : "Room name"}
                 data-testid="new-room-name" />
-              <input type="number" min={0} value={form.total_rooms} onChange={(e) => setForm({ ...form, total_rooms: e.target.value })}
+              <input type="number" min={0} value={form.total_rooms} onChange={(e) => setForm(prev => ({ ...prev, total_rooms: e.target.value }))}
                 className="px-3 py-2 rounded-lg border border-border text-sm" placeholder={lang === "sw" ? "Idadi" : "Rooms"}
                 data-testid="new-room-count" />
-              <input type="number" min={0} value={form.price_per_night} onChange={(e) => setForm({ ...form, price_per_night: e.target.value })}
+              <input type="number" min={0} value={form.price_per_night} onChange={(e) => setForm(prev => ({ ...prev, price_per_night: e.target.value }))}
                 className="px-3 py-2 rounded-lg border border-border text-sm" placeholder="TZS"
                 data-testid="new-room-price" />
               <div className="flex gap-2">

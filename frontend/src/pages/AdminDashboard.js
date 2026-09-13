@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { api, LoadingSpinner, useAuth, LanguageToggle, useLang } from "../App";
 import PhotoManager, { getPhotoUrl, getCoverUrl } from "../components/PhotoManager";
 import HotelEditPage from "../components/HotelEditPage";
+import AdminPasswordReset from "../components/AdminPasswordReset";
 import AdminAnalytics from "./AdminAnalytics";
 import {
   LayoutDashboard, Building2, Users, LogOut, Upload, UserCheck,
@@ -931,6 +932,7 @@ const AdminCashiers = () => {
 };
 
 const AdminUsers = () => {
+  const [resetUser, setResetUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1022,6 +1024,7 @@ const AdminUsers = () => {
 
   return (
     <div className="space-y-6">
+      {resetUser && <AdminPasswordReset key={resetUser.id} user={resetUser} onClose={() => setResetUser(null)} />}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <h1 className="font-['Outfit'] text-3xl font-bold text-[#18181B]">{translate("Users", "Watumiaji")}</h1>
@@ -1065,6 +1068,7 @@ const AdminUsers = () => {
               <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Role", "Jukumu")}</th>
               <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Hotel", "Hotel")}</th>
               <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">{translate("Status", "Hali")}</th>
+              <th className="text-left px-4 py-4 text-sm font-medium text-[#52525B]">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -1080,6 +1084,7 @@ const AdminUsers = () => {
                     {user.is_active ? translate("Active", "Hai") : translate("Inactive", "Imezimwa")}
                   </span>
                 </td>
+                <td className="px-4 py-4"><button type="button" onClick={() => setResetUser(user)} className="whitespace-nowrap rounded-lg border border-border px-3 py-2 text-sm font-medium text-[#9A3324] hover:bg-red-50">Reset Password</button></td>
               </tr>
             ))}
           </tbody>

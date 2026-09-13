@@ -15,7 +15,12 @@ export function getPhotoUrl(photo, size = "mobile") {
   if (!photo) return "";
   if (typeof photo === "string") return photo;
   const key = `cloudinary_${size}`;
-  return photo[key] || photo.cloudinary_original || photo.cloudinary_web || photo.cloudinary_mobile || photo.cloudinary_thumb || "";
+  return photo[key] || photo.cloudinary_original || photo.cloudinary_web || photo.cloudinary_mobile || photo.cloudinary_thumb || photo[`${size}_url`] || photo.url || photo.web_url || photo.original_url || photo.thumb_url || "";
+}
+
+export function handlePhotoError(event) {
+  const img = event.currentTarget;
+  if (!img.src.endsWith("/placeholder-hotel.svg")) img.src = "/placeholder-hotel.svg";
 }
 
 // Get cover photo URL from photos array
@@ -186,6 +191,7 @@ const PhotoManager = ({
             <div className="aspect-[3/2] relative cursor-pointer" onClick={() => setLightbox(photo)}>
               <img
                 src={getPhotoUrl(photo, "mobile")}
+                onError={handlePhotoError}
                 alt={`Photo ${idx + 1}`}
                 className="w-full h-full object-cover"
                 loading="lazy"
@@ -300,6 +306,7 @@ const PhotoManager = ({
           </button>
           <img
             src={getPhotoUrl(lightbox, "hd")}
+            onError={handlePhotoError}
             alt="Full size"
             className="max-w-full max-h-[90vh] object-contain rounded-lg"
           />

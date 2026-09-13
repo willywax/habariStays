@@ -10,7 +10,7 @@ import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
-import { getPhotoUrl, getCoverUrl } from "./components/PhotoManager";
+import { getPhotoUrl, getCoverUrl, handlePhotoError } from "./components/PhotoManager";
 import "@/App.css";
 import { trackPageView, trackSearch, trackZeroResults, trackHotelView, trackWhatsApp, trackPhoneView, sendBackendEvent } from "./analytics";
 
@@ -1410,7 +1410,7 @@ const HotelDetailPage = () => {
                     <div key={photo.id || idx} className="relative aspect-[3/2] rounded-xl overflow-hidden cursor-pointer group"
                       onClick={() => setActivePhoto(getPhotoUrl(photo, "hd") || getPhotoUrl(photo, "web") || getPhotoUrl(photo, "mobile"))}
                       data-testid={`photo-${photo.id || idx}`}>
-                      <img src={getPhotoUrl(photo, "mobile")} alt={`${hotel.name} ${idx + 1}`}
+                      <img onError={handlePhotoError} src={getPhotoUrl(photo, "mobile")} alt={`${hotel.name} ${idx + 1}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                       {photo.is_primary && (
                         <span className="absolute top-2 left-2 bg-[#F4A723] text-white text-xs px-2 py-0.5 rounded-full font-medium">
@@ -1682,7 +1682,7 @@ const HotelDetailPage = () => {
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <img src={activePhoto} alt="Hotel detail" className="w-full rounded-2xl shadow-2xl" />
+            <img onError={handlePhotoError} src={activePhoto} alt="Hotel detail" className="w-full rounded-2xl shadow-2xl" />
           </div>
         </div>
       )}

@@ -93,10 +93,10 @@ def get_cover_url(photos, size="cloudinary_mobile"):
         return None
     for p in photos:
         if isinstance(p, dict) and p.get("is_primary"):
-            return p.get(size) or p.get("cloudinary_original") or p.get("cloudinary_web")
+            return p.get(size) or p.get("cloudinary_original") or p.get("cloudinary_web") or p.get("url") or p.get("web_url")
     first = photos[0] if photos else None
     if isinstance(first, dict):
-        return first.get(size) or first.get("cloudinary_original") or first.get("cloudinary_web")
+        return first.get(size) or first.get("cloudinary_original") or first.get("cloudinary_web") or first.get("url") or first.get("web_url")
     return first if isinstance(first, str) else None
 
 
@@ -2588,6 +2588,36 @@ async def verify_owner(
     
     await crud.update_user(session, user_id, {"is_verified": True})
     return {"message": "Mmiliki amethibitishwa"}
+
+class AdminPasswordReset(BaseModel):
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_bcrypt_length(cls, value):
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 UTF-8 bytes")
+        return value
+
+
+@api_router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_user_password(
+    user_id: str,
+    body: AdminPasswordReset,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = await crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    await crud.update_user(session, user_id, {
+        "password_hash": get_password_hash(body.new_password),
+    })
+    await session.commit()
+    return {"message": "Password updated"}
+
 
 @api_router.get("/admin/users")
 async def admin_list_users(
